@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    container_name: farmer_backend
+    command: python manage.py runserver 0.0.0.0:8009
+    ports:
+      - "8009:8009"
+    volumes:
+      - .:/app
+    environment:
+      - DEBUG=True
+    restart: always
+
