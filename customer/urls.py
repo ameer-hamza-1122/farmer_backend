@@ -19,4 +19,12 @@ urlpatterns = [
     path('send-otp/', views.ForgotPasswordAPIView.as_view(), name='send-otp'),
     path('reset-password/', views.ResetPasswordWithOTPAPIView.as_view(), name='reset-password'),
 
+    # ------------------------------ Community-chat Endpoints ------------------------------
+    path('chat-ticket/', views.TicketListCreateAPIView.as_view(), name='chat-ticket'),
+    path('all-chat-tickets/', views.ChatTicketsByAgencyView.as_view(), name='chat-agency-tickets'),
+    path('ticket-detail/<int:pk>/', views.TicketDetailAPIView.as_view(), name='ticket-detail'),
+    path('get-ticket-reply/<int:ticket_id>/', views.AdminTicketReplyListCreateAPIView.as_view(), name='get-ticket-reply'),
+    path('admin-ticket-reply/<int:ticket_id>/', views.TicketReplyAnonymousCreateAPIView.as_view(), name='admin-ticket-reply'),
+
+
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

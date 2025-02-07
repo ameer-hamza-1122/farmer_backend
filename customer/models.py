@@ -7,6 +7,7 @@ from phonenumber_field.modelfields import PhoneNumberField
 
 # Create your models here.
 
+# ------------------------- Customer Models-------------------------
 class Customer(TimeStampedModel):
     name = models.CharField(max_length=100)
     username = models.CharField(max_length=100, unique=True, null=False, blank=False)
@@ -51,4 +52,43 @@ class OneTimePassword(models.Model):
     def is_valid(self):
         validity_duration = timezone.timedelta(minutes=5)
         return timezone.now() - self.created_at <= validity_duration
+
+
+# ------------------------- Community-Chat Models-------------------------
+
+class ChatTicket(TimeStampedModel):
+    customer = models.ForeignKey(
+        Customer,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="tickets",
+    )
+    subject = models.CharField(max_length=255)
+    description = models.TextField()
+
+    def __str__(self):
+        return f"{self.subject}"
+
+
+class ChatTicketReply(TimeStampedModel):
+    ticket = models.ForeignKey(
+        ChatTicket,
+        on_delete=models.CASCADE,
+        related_name="replies",
+        null=True,
+        blank=True,
+    )
+    customer = models.ForeignKey(
+        Customer,
+        on_delete=models.CASCADE,
+        related_name="ticket_replies",
+        null=True,
+        blank=True,
+        default=True,
+    )
+    message = models.TextField()
+
+    def __str__(self):
+        return f"Reply by {self.customer}"
 
