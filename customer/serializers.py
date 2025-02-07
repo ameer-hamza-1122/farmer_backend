@@ -1,5 +1,5 @@
 import codecs
-from .models import Customer
+from .models import Customer, ChatTicket, ChatTicketReply
 from django.forms import ValidationError
 from rest_framework import serializers, status
 from django.contrib.auth.hashers import make_password
@@ -154,3 +154,19 @@ class ResetPasswordWithOTPSerializer(serializers.Serializer):
     otp = serializers.CharField(max_length=6)
     new_password = serializers.CharField(write_only=True)
 
+
+# --------------------- Community-chat Serializer ---------------------
+
+class ChatTicketReplySerializer(serializers.ModelSerializer):
+    customer = CustomerSerializer(many=False, read_only=True)
+    class Meta:
+        model = ChatTicketReply
+        fields = ['id', 'ticket', 'customer', 'message', 'created_on']
+    
+class ChatTicketSerializer(serializers.ModelSerializer):
+    replies = ChatTicketReplySerializer(many=True, read_only=True)
+    customer = CustomerSerializer(many=False, read_only=True)
+
+    class Meta:
+        model = ChatTicket
+        fields = ['id', 'customer', 'subject', 'description', 'status', 'created_on', 'updated_on', 'replies']
