@@ -210,7 +210,7 @@ class AdminTicketReplyListCreateAPIView(generics.ListCreateAPIView):
     def get_queryset(self):
         ticket_id = self.kwargs['ticket_id']
         return ChatTicketReply.objects.filter(ticket_id=ticket_id)
-    
+  
     
 class TicketReplyAnonymousCreateAPIView(generics.CreateAPIView):
     serializer_class = serializers.ChatTicketReplySerializer

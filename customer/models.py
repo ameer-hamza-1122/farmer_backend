@@ -66,9 +66,10 @@ class ChatTicket(TimeStampedModel):
     )
     subject = models.CharField(max_length=255)
     description = models.TextField()
+    created_on = models.DateTimeField(auto_now_add=True, null=True, blank=True)
 
     def __str__(self):
-        return f"{self.subject}"
+        return f"{self.id} - {self.subject} - {self.customer}"
 
 
 class ChatTicketReply(TimeStampedModel):
@@ -88,7 +89,8 @@ class ChatTicketReply(TimeStampedModel):
         default=True,
     )
     message = models.TextField()
+    created_on = models.DateTimeField(auto_now_add=True, null=True, blank=True)
 
     def __str__(self):
-        return f"Reply by {self.customer}"
+        return f"{self.id} - Reply by {self.customer}"
 
