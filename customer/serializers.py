@@ -169,4 +169,4 @@ class ChatTicketSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ChatTicket
-        fields = ['id', 'customer', 'subject', 'description', 'status', 'created_on', 'updated_on', 'replies']
+        fields = ['id', 'customer', 'subject', 'description', 'created_on', 'replies']
