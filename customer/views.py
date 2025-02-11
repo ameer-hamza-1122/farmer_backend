@@ -142,77 +142,36 @@ class TicketListCreateAPIView(generics.ListCreateAPIView):
     def perform_create(self, serializer):
         customer = self.request.user
         serializer.save(customer=customer)
-        
 
-class ChatTicketsByAgencyView(APIView):
+
+class ListAllChatTickets(APIView):
     authentication_classes = (CustomJWTAuthentication,)
     permission_classes = (IsCustomer,)
-    
+
     def get(self, request):
-        user = self.request.user
-        agency = CustomerWhitelabelDashboardRequest.objects.filter(customer=user).first()
+        chat_tickets = ChatTicket.objects.all().order_by('-created_on')
+        serializer = serializers.ChatTicketSerializer(chat_tickets, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
-        
-        if not agency:
-            return Response({"detail": "Agency not found for the user."}, status=400)
-        tickets_created_by_customer = ChatTicket.objects.filter(customer__agency_id=agency.id).distinct()
-        tickets_created_for_customer = ChatTicket.objects.filter(table__customer=user).distinct()
-        
-        tickets = (tickets_created_by_customer | tickets_created_for_customer).distinct().order_by('-created_on')
-
-        search_query = request.query_params.get('search', None)
-        if search_query:
-            tickets = tickets.filter(
-                Q(subject__icontains=search_query) |
-                Q(description__icontains=search_query)
-            )
-
-        total_records = tickets.count()
-
-        draw = int(request.GET.get("draw", 1))
-        start = int(request.GET.get("start", 0))
-        length = int(request.GET.get("length", 10))
-
-        queryset = tickets.order_by("-id")
-        paginator = Paginator(queryset, length)
-        try:
-            tickets = paginator.page((start // length) + 1)
-        except PageNotAnInteger:
-            tickets = paginator.page(1)
-        except EmptyPage:
-            tickets = paginator.page(paginator.num_pages)
-
-
-        serializer = serializers.ChatTicketSerializer(tickets, many=True)
-
-        response_data = {
-            "draw": draw,
-            "recordsTotal": total_records,
-            "recordsFiltered": total_records,
-            "data": serializer.data,
-        }
-
-        return Response(response_data)
-        
 
 class TicketDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
-    queryset = ChatTicket.objects.all()
     serializer_class = serializers.ChatTicketSerializer
     authentication_classes = (CustomJWTAuthentication,)
     permission_classes = (IsCustomer,)
-    
+    queryset = ChatTicket.objects.all()
 
-class AdminTicketReplyListCreateAPIView(generics.ListCreateAPIView):
-    serializer_class = serializers.ChatTicketReplySerializer
+
+class TicketReplyListAPIView(generics.ListCreateAPIView):
     authentication_classes = (CustomJWTAuthentication,)
     permission_classes = (IsCustomer,)
+    serializer_class = serializers.ChatTicketReplySerializer
 
     def get_queryset(self):
         ticket_id = self.kwargs['ticket_id']
         return ChatTicketReply.objects.filter(ticket_id=ticket_id)
   
     
-class TicketReplyAnonymousCreateAPIView(generics.CreateAPIView):
+class TicketReplyCreateAPIView(generics.CreateAPIView):
     serializer_class = serializers.ChatTicketReplySerializer
     authentication_classes = (CustomJWTAuthentication,)
     permission_classes = (IsCustomer,)

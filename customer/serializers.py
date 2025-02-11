@@ -162,7 +162,8 @@ class ChatTicketReplySerializer(serializers.ModelSerializer):
     class Meta:
         model = ChatTicketReply
         fields = ['id', 'ticket', 'customer', 'message', 'created_on']
-    
+
+   
 class ChatTicketSerializer(serializers.ModelSerializer):
     replies = ChatTicketReplySerializer(many=True, read_only=True)
     customer = CustomerSerializer(many=False, read_only=True)
@@ -170,3 +171,18 @@ class ChatTicketSerializer(serializers.ModelSerializer):
     class Meta:
         model = ChatTicket
         fields = ['id', 'customer', 'subject', 'description', 'created_on', 'replies']
+
+    def validate(self, data):
+        customer = self.context['request'].user
+
+        if ChatTicket.objects.filter(
+            customer=customer, 
+            subject=data.get('subject'), 
+            description=data.get('description')
+        ).exists():
+            raise CustomValidationError(
+                detail='You have already created a chat ticket with the same subject and description.',
+                status_code=status.HTTP_409_CONFLICT
+            )
+
+        return data
