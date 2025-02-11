@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'corsheaders',
     'customer',
+    'post',
     'rest_framework_simplejwt',
     'django_extensions',
     'phonenumber_field',
