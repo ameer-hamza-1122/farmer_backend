@@ -1,10 +1,10 @@
 import codecs
-from .models import Customer, ChatTicket, ChatTicketReply
 from django.forms import ValidationError
 from rest_framework import serializers, status
 from django.contrib.auth.hashers import make_password
 from rest_framework.exceptions import PermissionDenied
 from authentication import IsCustomer, decrypt_password
+from .models import Customer, ChatTicket, ChatTicketReply
 
 
 # --------------------- Custom Validation Error Class ---------------------

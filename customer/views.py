@@ -1,23 +1,23 @@
 from django.conf import settings
 from customer import serializers
-from smtplib import SMTPException
 from rest_framework import status
-from rest_framework import viewsets, generics
+from smtplib import SMTPException
 from django.core.mail import send_mail
 from rest_framework.views import APIView
 from django.core.mail import BadHeaderError
 from rest_framework.response import Response
-from .models import Customer, OneTimePassword, ChatTicket, ChatTicketReply
+from rest_framework import viewsets, generics
 from rest_framework.permissions import AllowAny
 from django.utils.crypto import get_random_string
 from django.utils.decorators import method_decorator
 from rest_framework.permissions import IsAuthenticated
 from authentication import CustomJWTAuthentication, IsCustomer
 from rest_framework.exceptions import NotFound, PermissionDenied
+from django.core.paginator import Paginator, PageNotAnInteger, EmptyPage
+from .models import Customer, OneTimePassword, ChatTicket, ChatTicketReply
 from rest_framework.generics import CreateAPIView, RetrieveAPIView, ListAPIView
 from rest_framework.decorators import action, permission_classes, authentication_classes
 from .serializers import CustomerLoginSerializer, CustomerSerializer, RegisterCustomerSerializer,ForgotPasswordSerializer, ResetPasswordWithOTPSerializer
-from django.core.paginator import Paginator, PageNotAnInteger, EmptyPage
 
 # --------------------- CUSTOMER GET, UPDATE, DELETE ---------------------
 

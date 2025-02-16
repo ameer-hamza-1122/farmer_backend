@@ -16,7 +16,7 @@ class Customer(TimeStampedModel):
     password_key = models.CharField(max_length=100, blank=False, null=False)
     phone = PhoneNumberField(unique=True, region='PK', blank=False, null=False)
     address = models.TextField( blank=True, null=True)
-    image = models.ImageField(upload_to='customer/images/', blank=True, null=True)
+    image = models.ImageField(upload_to='customer/', blank=True, null=True)
     created_on = models.DateTimeField(auto_now_add=True)
     otp = models.CharField(max_length=6, blank=True, null=True)
 
@@ -31,7 +31,7 @@ class Customer(TimeStampedModel):
         ordering = ('-created_on',)
 
     def __str__(self):
-        return self.username
+        return f"{self.id} - {self.username}"
     
     @classmethod
     def get_jwt_token(cls, user):
