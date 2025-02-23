@@ -1,4 +1,5 @@
 import codecs
+from .models import News
 from django.forms import ValidationError
 from rest_framework import serializers, status
 from django.contrib.auth.hashers import make_password
@@ -167,10 +168,11 @@ class ChatTicketReplySerializer(serializers.ModelSerializer):
 class ChatTicketSerializer(serializers.ModelSerializer):
     replies = ChatTicketReplySerializer(many=True, read_only=True)
     customer = CustomerSerializer(many=False, read_only=True)
+    reply_count = serializers.SerializerMethodField()
 
     class Meta:
         model = ChatTicket
-        fields = ['id', 'customer', 'subject', 'description', 'created_on', 'replies']
+        fields = ['id', 'customer', 'subject', 'description', 'created_on', 'reply_count', 'replies']
 
     def validate(self, data):
         customer = self.context['request'].user
@@ -184,5 +186,28 @@ class ChatTicketSerializer(serializers.ModelSerializer):
                 detail='You have already created a chat ticket with the same subject and description.',
                 status_code=status.HTTP_409_CONFLICT
             )
-
         return data
+    
+    def get_reply_count(self, obj):
+        return obj.replies.count()
+
+
+# --------------------- Create-bulk-news Serializer ---------------------
+
+class NewsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = News
+        fields = [
+            'id',
+            'url',
+            'title',
+            'image',
+            'description',
+            'author_image',
+            'author_name',
+            'author_description',
+            'created_at',
+            'updated_at'
+        ]
+
+

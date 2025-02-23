@@ -1,3 +1,5 @@
+import json
+import os
 from django.conf import settings
 from customer import serializers
 from rest_framework import status
@@ -14,10 +16,10 @@ from rest_framework.permissions import IsAuthenticated
 from authentication import CustomJWTAuthentication, IsCustomer
 from rest_framework.exceptions import NotFound, PermissionDenied
 from django.core.paginator import Paginator, PageNotAnInteger, EmptyPage
-from .models import Customer, OneTimePassword, ChatTicket, ChatTicketReply
+from .models import Customer, OneTimePassword, ChatTicket, ChatTicketReply, News
 from rest_framework.generics import CreateAPIView, RetrieveAPIView, ListAPIView
 from rest_framework.decorators import action, permission_classes, authentication_classes
-from .serializers import CustomerLoginSerializer, CustomerSerializer, RegisterCustomerSerializer,ForgotPasswordSerializer, ResetPasswordWithOTPSerializer
+from .serializers import CustomerLoginSerializer, CustomerSerializer, RegisterCustomerSerializer,ForgotPasswordSerializer, ResetPasswordWithOTPSerializer, NewsSerializer
 
 # --------------------- CUSTOMER GET, UPDATE, DELETE ---------------------
 
@@ -181,4 +183,69 @@ class TicketReplyCreateAPIView(generics.CreateAPIView):
         ticket_id = self.kwargs['ticket_id']
         ticket = ChatTicket.objects.get(id=ticket_id)
         serializer.save(ticket=ticket, customer=user)
+
+
+# --------------------- Create-bulk-news APIView ---------------------
+
+class BulkNewsCreateAPIView(APIView):
+    def post(self, request):
+        # Path to JSON file in the project's base directory
+        json_file_path = os.path.join(settings.BASE_DIR, 'article_details.json')
+        
+        try:
+            # Read the JSON file
+            with open(json_file_path, 'r') as file:
+                news_data = json.load(file)
+                print("Raw JSON data:", news_data)  # Debug: Check the loaded data
+                
+                # Map JSON field names to model field names
+                mapped_data = []
+                for item in news_data:
+                    mapped_item = {
+                        'url': item.get('URL', ''),  # Use .get() with default empty string
+                        'title': item.get('Title', ''),
+                        'image': item.get('Image'),  # Optional field
+                        'description': item.get('Description', ''),
+                        'author_image': item.get('Author Image'),  # Optional field
+                        'author_name': item.get('Author Name', ''),
+                        'author_description': item.get('Author Description', '')
+                    }
+                    mapped_data.append(mapped_item)
+                
+                print("Mapped data:", mapped_data)  # Debug: Check the mapped data
+
+                # Validate the data
+                serializer = NewsSerializer(data=mapped_data, many=True)
+                if serializer.is_valid():
+                    news_instances = [
+                        News(
+                            url=item['url'],
+                            title=item['title'],
+                            image=item.get('image'),
+                            description=item['description'],
+                            author_image=item.get('author_image'),
+                            author_name=item['author_name'],
+                            author_description=item['author_description']
+                        ) for item in serializer.validated_data
+                    ]
+                    
+                    News.objects.bulk_create(news_instances)
+                    
+                    return Response({
+                        "message": f"Successfully created {len(news_instances)} news items",
+                        "count": len(news_instances)
+                    }, status=status.HTTP_201_CREATED)
+                else:
+                    print("Serializer errors:", serializer.errors)  # Debug: Check validation errors
+                    return Response({
+                        "error": "Invalid data",
+                        "details": serializer.errors
+                    }, status=status.HTTP_400_BAD_REQUEST)
+                    
+        except FileNotFoundError:
+            return Response({"error": "JSON file not found in project directory"}, status=status.HTTP_404_NOT_FOUND)
+        except json.JSONDecodeError:
+            return Response({"error": "Invalid JSON format in file"}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({"error": f"Error processing news items: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
