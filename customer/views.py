@@ -1,5 +1,6 @@
 import json
 import os
+import re
 from django.conf import settings
 from customer import serializers
 from rest_framework import status
@@ -196,37 +197,34 @@ class BulkNewsCreateAPIView(APIView):
             # Read the JSON file
             with open(json_file_path, 'r') as file:
                 news_data = json.load(file)
-                print("Raw JSON data:", news_data)  # Debug: Check the loaded data
-                
                 # Map JSON field names to model field names
                 mapped_data = []
                 for item in news_data:
+                    # Sanitize image and author_image fields
+                    image = item.get('Image')
+                    author_image = item.get('Author Image')
+                    
+                    # Convert to None if null, empty, or not a valid URL
+                    if image is None or image == '' or not isinstance(image, str) or not re.match(r'^https?://', image):
+                        image = None
+                    if author_image is None or author_image == '' or not isinstance(author_image, str) or not re.match(r'^https?://', author_image):
+                        author_image = None
+
                     mapped_item = {
-                        'url': item.get('URL', ''),  # Use .get() with default empty string
+                        'url': item.get('URL', ''),
                         'title': item.get('Title', ''),
-                        'image': item.get('Image'),  # Optional field
+                        'image': image,
                         'description': item.get('Description', ''),
-                        'author_image': item.get('Author Image'),  # Optional field
+                        'author_image': author_image,
                         'author_name': item.get('Author Name', ''),
                         'author_description': item.get('Author Description', '')
                     }
                     mapped_data.append(mapped_item)
-                
-                print("Mapped data:", mapped_data)  # Debug: Check the mapped data
 
-                # Validate the data
                 serializer = NewsSerializer(data=mapped_data, many=True)
                 if serializer.is_valid():
                     news_instances = [
-                        News(
-                            url=item['url'],
-                            title=item['title'],
-                            image=item.get('image'),
-                            description=item['description'],
-                            author_image=item.get('author_image'),
-                            author_name=item['author_name'],
-                            author_description=item['author_description']
-                        ) for item in serializer.validated_data
+                        News(**item) for item in serializer.validated_data
                     ]
                     
                     News.objects.bulk_create(news_instances)
