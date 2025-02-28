@@ -1,22 +1,27 @@
+import os
+import re
+import json
 from django.conf import settings
 from customer import serializers
-from smtplib import SMTPException
+from django.db.models import Func
 from rest_framework import status
-from rest_framework import viewsets
+from smtplib import SMTPException
 from django.core.mail import send_mail
 from rest_framework.views import APIView
 from django.core.mail import BadHeaderError
 from rest_framework.response import Response
-from .models import Customer, OneTimePassword
+from rest_framework import viewsets, generics
 from rest_framework.permissions import AllowAny
 from django.utils.crypto import get_random_string
 from django.utils.decorators import method_decorator
 from rest_framework.permissions import IsAuthenticated
 from authentication import CustomJWTAuthentication, IsCustomer
 from rest_framework.exceptions import NotFound, PermissionDenied
+from django.core.paginator import Paginator, PageNotAnInteger, EmptyPage
+from .models import Customer, OneTimePassword, ChatTicket, ChatTicketReply, News
 from rest_framework.generics import CreateAPIView, RetrieveAPIView, ListAPIView
 from rest_framework.decorators import action, permission_classes, authentication_classes
-from .serializers import CustomerLoginSerializer, CustomerSerializer, RegisterCustomerSerializer,ForgotPasswordSerializer, ResetPasswordWithOTPSerializer
+from .serializers import CustomerLoginSerializer, CustomerSerializer, RegisterCustomerSerializer,ForgotPasswordSerializer, ResetPasswordWithOTPSerializer, NewsSerializer
 
 # --------------------- CUSTOMER GET, UPDATE, DELETE ---------------------
 
@@ -31,10 +36,6 @@ class CustomerViewSet(viewsets.ModelViewSet):
         customer = self.get_object()
         serializer = self.get_serializer(customer)
         return Response(serializer.data)
-    
-    # # Gives detail of the request user only
-    # def get_queryset(self):
-    #     return Customer.objects.filter(id=self.request.user.id)
 
     # Updates the requested user's data
     def update(self, request, pk=None):
@@ -129,4 +130,144 @@ class ResetPasswordWithOTPAPIView(APIView):
             return Response({"message": "Password reset successful."}, status=status.HTTP_200_OK)
         except OneTimePassword.DoesNotExist:
             return Response({"detail": "Invalid or expired OTP."}, status=status.HTTP_400_BAD_REQUEST)
+
+
+# --------------------- Community-chat APIView ---------------------
+
+class TicketListCreateAPIView(generics.ListCreateAPIView):
+    serializer_class = serializers.ChatTicketSerializer
+    authentication_classes = (CustomJWTAuthentication,)
+    permission_classes = (IsCustomer,)
+
+    def get_queryset(self):
+        customer = self.request.user
+        return ChatTicket.objects.filter(customer=customer)
+
+    def perform_create(self, serializer):
+        customer = self.request.user
+        serializer.save(customer=customer)
+
+
+class ListAllChatTickets(APIView):
+    authentication_classes = (CustomJWTAuthentication,)
+    permission_classes = (IsCustomer,)
+
+    def get(self, request):
+        chat_tickets = ChatTicket.objects.all().order_by('-created_on')
+        serializer = serializers.ChatTicketSerializer(chat_tickets, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class TicketDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = serializers.ChatTicketSerializer
+    authentication_classes = (CustomJWTAuthentication,)
+    permission_classes = (IsCustomer,)
+    queryset = ChatTicket.objects.all()
+
+
+class TicketReplyListAPIView(generics.ListCreateAPIView):
+    authentication_classes = (CustomJWTAuthentication,)
+    permission_classes = (IsCustomer,)
+    serializer_class = serializers.ChatTicketReplySerializer
+
+    def get_queryset(self):
+        ticket_id = self.kwargs['ticket_id']
+        return ChatTicketReply.objects.filter(ticket_id=ticket_id)
+  
+    
+class TicketReplyCreateAPIView(generics.CreateAPIView):
+    serializer_class = serializers.ChatTicketReplySerializer
+    authentication_classes = (CustomJWTAuthentication,)
+    permission_classes = (IsCustomer,)
+
+    def perform_create(self, serializer):
+        user = self.request.user
+        ticket_id = self.kwargs['ticket_id']
+        ticket = ChatTicket.objects.get(id=ticket_id)
+        serializer.save(ticket=ticket, customer=user)
+
+
+# --------------------- Create-bulk-news APIView ---------------------
+
+class BulkNewsCreateAPIView(APIView):
+    authentication_classes = (CustomJWTAuthentication,)
+    permission_classes = (IsCustomer,)
+
+    def post(self, request):
+        # Path to JSON file in the project's base directory
+        json_file_path = os.path.join(settings.BASE_DIR, 'article_details.json')
+        
+        try:
+            # Read the JSON file
+            with open(json_file_path, 'r') as file:
+                news_data = json.load(file)
+                # Map JSON field names to model field names
+                mapped_data = []
+                for item in news_data:
+                    # Sanitize image and author_image fields
+                    image = item.get('Image')
+                    author_image = item.get('Author Image')
+                    
+                    # Convert to None if null, empty, or not a valid URL
+                    if image is None or image == '' or not isinstance(image, str) or not re.match(r'^https?://', image):
+                        image = None
+                    if author_image is None or author_image == '' or not isinstance(author_image, str) or not re.match(r'^https?://', author_image):
+                        author_image = None
+
+                    mapped_item = {
+                        'url': item.get('URL', ''),
+                        'title': item.get('Title', ''),
+                        'image': image,
+                        'description': item.get('Description', ''),
+                        'author_image': author_image,
+                        'author_name': item.get('Author Name', ''),
+                        'author_description': item.get('Author Description', '')
+                    }
+                    mapped_data.append(mapped_item)
+
+                serializer = NewsSerializer(data=mapped_data, many=True)
+                if serializer.is_valid():
+                    news_instances = [
+                        News(**item) for item in serializer.validated_data
+                    ]
+                    
+                    News.objects.bulk_create(news_instances)
+                    
+                    return Response({
+                        "message": f"Successfully created {len(news_instances)} news items",
+                        "count": len(news_instances)
+                    }, status=status.HTTP_201_CREATED)
+                else:
+                    print("Serializer errors:", serializer.errors)  # Debug: Check validation errors
+                    return Response({
+                        "error": "Invalid data",
+                        "details": serializer.errors
+                    }, status=status.HTTP_400_BAD_REQUEST)
+                    
+        except FileNotFoundError:
+            return Response({"error": "JSON file not found in project directory"}, status=status.HTTP_404_NOT_FOUND)
+        except json.JSONDecodeError:
+            return Response({"error": "Invalid JSON format in file"}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({"error": f"Error processing news items: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class RandomNewsAPIView(APIView):
+    authentication_classes = (CustomJWTAuthentication,)
+    permission_classes = (IsCustomer,)
+    
+    def get(self, request):
+        try:
+            news_items = News.objects.all().order_by(Func(function='RANDOM'))
+            serializer = NewsSerializer(news_items, many=True)
+            return Response({
+                "message": "Successfully retrieved random news items",
+                "count": len(serializer.data),
+                "data": serializer.data
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            return Response({
+                "error": f"Error retrieving news items: {str(e)}"
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 

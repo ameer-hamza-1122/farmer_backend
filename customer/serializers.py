@@ -1,10 +1,11 @@
 import codecs
-from .models import Customer
+from .models import News
 from django.forms import ValidationError
 from rest_framework import serializers, status
 from django.contrib.auth.hashers import make_password
 from rest_framework.exceptions import PermissionDenied
 from authentication import IsCustomer, decrypt_password
+from .models import Customer, ChatTicket, ChatTicketReply
 
 
 # --------------------- Custom Validation Error Class ---------------------
@@ -153,4 +154,60 @@ class ForgotPasswordSerializer(serializers.Serializer):
 class ResetPasswordWithOTPSerializer(serializers.Serializer):
     otp = serializers.CharField(max_length=6)
     new_password = serializers.CharField(write_only=True)
+
+
+# --------------------- Community-chat Serializer ---------------------
+
+class ChatTicketReplySerializer(serializers.ModelSerializer):
+    customer = CustomerSerializer(many=False, read_only=True)
+    class Meta:
+        model = ChatTicketReply
+        fields = ['id', 'ticket', 'customer', 'message', 'created_on']
+
+   
+class ChatTicketSerializer(serializers.ModelSerializer):
+    replies = ChatTicketReplySerializer(many=True, read_only=True)
+    customer = CustomerSerializer(many=False, read_only=True)
+    reply_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ChatTicket
+        fields = ['id', 'customer', 'subject', 'description', 'created_on', 'reply_count', 'replies']
+
+    def validate(self, data):
+        customer = self.context['request'].user
+
+        if ChatTicket.objects.filter(
+            customer=customer, 
+            subject=data.get('subject'), 
+            description=data.get('description')
+        ).exists():
+            raise CustomValidationError(
+                detail='You have already created a chat ticket with the same subject and description.',
+                status_code=status.HTTP_409_CONFLICT
+            )
+        return data
+    
+    def get_reply_count(self, obj):
+        return obj.replies.count()
+
+
+# --------------------- Create-bulk-news Serializer ---------------------
+
+class NewsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = News
+        fields = [
+            'id',
+            'url',
+            'title',
+            'image',
+            'description',
+            'author_image',
+            'author_name',
+            'author_description',
+            'created_at',
+            'updated_at'
+        ]
+
 
