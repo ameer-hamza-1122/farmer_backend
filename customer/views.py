@@ -1,8 +1,9 @@
-import json
 import os
 import re
+import json
 from django.conf import settings
 from customer import serializers
+from django.db.models import Func
 from rest_framework import status
 from smtplib import SMTPException
 from django.core.mail import send_mail
@@ -189,6 +190,9 @@ class TicketReplyCreateAPIView(generics.CreateAPIView):
 # --------------------- Create-bulk-news APIView ---------------------
 
 class BulkNewsCreateAPIView(APIView):
+    authentication_classes = (CustomJWTAuthentication,)
+    permission_classes = (IsCustomer,)
+
     def post(self, request):
         # Path to JSON file in the project's base directory
         json_file_path = os.path.join(settings.BASE_DIR, 'article_details.json')
@@ -246,4 +250,24 @@ class BulkNewsCreateAPIView(APIView):
             return Response({"error": "Invalid JSON format in file"}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             return Response({"error": f"Error processing news items: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class RandomNewsAPIView(APIView):
+    authentication_classes = (CustomJWTAuthentication,)
+    permission_classes = (IsCustomer,)
+    
+    def get(self, request):
+        try:
+            news_items = News.objects.all().order_by(Func(function='RANDOM'))
+            serializer = NewsSerializer(news_items, many=True)
+            return Response({
+                "message": "Successfully retrieved random news items",
+                "count": len(serializer.data),
+                "data": serializer.data
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            return Response({
+                "error": f"Error retrieving news items: {str(e)}"
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
