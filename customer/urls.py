@@ -28,5 +28,6 @@ urlpatterns = [
 
     # ------------------------------ Create-bulk-news Endpoints ------------------------------
     path('customer/news/bulk-create/', views.BulkNewsCreateAPIView.as_view(), name='bulk-news-create'),
+    path('customer/news/', views.RandomNewsAPIView.as_view(), name='get-random-news'),
 
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

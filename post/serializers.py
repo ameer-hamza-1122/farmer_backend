@@ -19,6 +19,7 @@ class PostSerializer(serializers.ModelSerializer):
     customer_name = serializers.ReadOnlyField(source='customer.username')
     comments = CommentSerializer(many=True, read_only=True)
     likes_count = serializers.SerializerMethodField()
+    image = serializers.SerializerMethodField()  # Return full URL
 
     class Meta:
         model = Post
@@ -26,3 +27,9 @@ class PostSerializer(serializers.ModelSerializer):
 
     def get_likes_count(self, obj):
         return obj.likes.count()
+
+    def get_image(self, obj):
+        request = self.context.get('request')
+        if obj.image and hasattr(obj.image, 'url'):
+            return request.build_absolute_uri(obj.image.url) if request else obj.image.url
+        return None
