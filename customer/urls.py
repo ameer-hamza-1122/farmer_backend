@@ -6,7 +6,7 @@ from django.conf.urls.static import static
 from rest_framework.routers import DefaultRouter
 
 router = DefaultRouter()
-router.register(r'create', CustomerViewSet, basename='customer')
+router.register(r'customer/create', CustomerViewSet, basename='customer')
 
 urlpatterns = [
     path('', include(router.urls)),
