@@ -109,7 +109,10 @@ class CustomerLoginSerializer(serializers.Serializer):
 
     def get_image(self, obj):
         customer = Customer.objects.filter(email=obj['email']).last()
-        return customer.image.url if customer and customer.image else None
+        if customer and customer.image:
+            request = self.context.get('request')
+            return request.build_absolute_uri(customer.image.url) if request else f"http://localhost:8009{customer.image.url}"
+        return None
 
     def get_created_on(self, obj):
         customer = Customer.objects.filter(email=obj['email']).last()
