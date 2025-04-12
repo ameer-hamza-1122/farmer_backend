@@ -31,6 +31,7 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = 'django-insecure-erds%_@w2a1w8^2-x+^(1xslw$(bqmd6nyj0qz1po_(4cyn9(x'
+OPENWEATHERMAP_API_KEY = '9ce3cd837a9e8e65e5fe2d0fdba6ab9f'
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -55,6 +56,7 @@ INSTALLED_APPS = [
     'django_extensions',
     'phonenumber_field',
     'django_filters',
+    'weather',
     
 ]
 
