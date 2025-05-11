@@ -8,6 +8,7 @@ from phonenumber_field.modelfields import PhoneNumberField
 # Create your models here.
 
 # ------------------------- Customer Models-------------------------
+
 class Customer(TimeStampedModel):
     name = models.CharField(max_length=100)
     username = models.CharField(max_length=100, unique=True, null=False, blank=False)
@@ -96,7 +97,6 @@ class ChatTicketReply(TimeStampedModel):
 
 
 # ------------------------- News Models-------------------------
-
 
 class News(models.Model):
     url = models.URLField(max_length=1000, unique=True, blank=True, null=True)

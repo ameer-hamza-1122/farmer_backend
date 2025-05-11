@@ -282,11 +282,29 @@ class AIChatView(APIView):
     permission_classes = (IsCustomer,)
     
     def post(self, request):
-        # Extract content from request body
-        content = request.data.get('content')
-        if not content:
+        # Extract acres from request body
+        acres = request.data.get('acres')
+        disease = request.data.get('disease')
+        # Optional: Validate disease input
+        if disease and not isinstance(disease, str):
             return Response(
-                {"error": "Content is required"},
+                {"error": "Invalid input: Disease must be a string"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Validate input
+        if not acres:
+            return Response(
+                {"error": "Number of acres is required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        try:
+            acres = float(acres)
+            if acres <= 0:
+                raise ValueError("Acres must be a positive number")
+        except (ValueError, TypeError):
+            return Response(
+                {"error": "Invalid input: Acres must be a positive number"},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
@@ -311,15 +329,40 @@ class AIChatView(APIView):
                         raise e
             raise Exception("Max retries exceeded")
 
+        # Craft prompt to restrict AI to potato crop and fertilizer information only
+        prompt = (
+            f"A farmer has {acres} acres of potato crops. Provide detailed recommendations for the amount of fertilizer, "
+            f"{f' affected by {disease}' if disease else ''}. "
+            f"Provide detailed recommendations for the amount of fertilizer, "
+            f"macro-fertilizer (nitrogen, phosphorus, potassium), and water required for optimal potato crop growth. "
+            f"Include specific quantities (e.g., kg per acre or liters per acre) and any relevant application schedules. "
+            f"Focus only on potato crops, fertilizers, and water requirements. Do not provide information on other crops, "
+            f"pesticides, or unrelated topics."
+        )
+
         try:
             # Make request to Mistral AI
             response = make_request_with_retry(
                 client=client,
                 model="mistral-large-latest",
-                messages=[{"role": "user", "content": content}]
+                messages=[{"role": "user", "content": prompt}]
             )
+            ai_response = response.choices[0].message.content
+
+            # Optional: Validate response to ensure it adheres to restrictions
+            restricted_keywords = ["pesticide", "herbicide", "wheat", "corn", "rice"]  # Add more as needed
+            if any(keyword in ai_response.lower() for keyword in restricted_keywords):
+                return Response(
+                    {"error": "AI response contains restricted information"},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+
             return Response(
-                {"response": response.choices[0].message.content},
+                {
+                    "acres": acres,
+                    "disease": disease,
+                    "recommendations": ai_response
+                },
                 status=status.HTTP_200_OK
             )
         except Exception as e:
