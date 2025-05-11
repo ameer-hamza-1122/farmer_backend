@@ -101,7 +101,7 @@ class ChatTicketReply(TimeStampedModel):
 class News(models.Model):
     url = models.URLField(max_length=1000, unique=True, blank=True, null=True)
     title = models.CharField(max_length=1000, blank=True, null=True)
-    image = models.ImageField(upload_to='customer_images/', null=True, blank=True)
+    image = models.URLField(max_length=1000, null=True, blank=True)
     description = models.TextField(blank=True, null=True)
     author_image = models.URLField(max_length=1000, blank=True, null=True)
     author_name = models.CharField(max_length=5000, blank=True, null=True)
