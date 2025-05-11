@@ -61,6 +61,7 @@ class CustomerViewSet(viewsets.ModelViewSet):
             status=status.HTTP_204_NO_CONTENT
         )
 
+
 # --------------------- CUSTOMER Register, Login ---------------------
 
 class RegisterCustomerAPIView(APIView):
@@ -82,6 +83,7 @@ class CustomerLoginAPIView(CreateAPIView):
         login_serializer = self.get_serializer_class()
         login_serializer(data=request.data).is_valid(raise_exception=True)
         return self.create(request, *args, **kwargs)
+
 
 # --------------------- CUSTOMER Forgot-password APIView ---------------------
 
@@ -370,4 +372,19 @@ class AIChatView(APIView):
                 {"error": str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+
+# --------------------- Crop-yield-calculator APIView ---------------------
+
+from .models import YieldCalculation
+from .serializers import YieldCalculationSerializer
+
+class YieldCalculationViewSet(viewsets.ModelViewSet):
+    serializer_class = YieldCalculationSerializer
+    authentication_classes = (CustomJWTAuthentication,)
+    permission_classes = (IsCustomer,)
+    queryset = YieldCalculation.objects.all()
+
+    def perform_create(self, serializer):
+        serializer.save()
 

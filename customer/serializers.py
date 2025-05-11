@@ -5,7 +5,7 @@ from rest_framework import serializers, status
 from django.contrib.auth.hashers import make_password
 from rest_framework.exceptions import PermissionDenied
 from authentication import IsCustomer, decrypt_password
-from .models import Customer, ChatTicket, ChatTicketReply
+from .models import Customer, ChatTicket, ChatTicketReply, YieldCalculation
 
 
 # --------------------- Custom Validation Error Class ---------------------
@@ -19,6 +19,7 @@ class CustomValidationError(PermissionDenied):
         self.detail = detail if detail else self.default_detail
         if status_code is not None:
             self.status_code = status_code
+
 
 # --------------------- CUSTOMER CRUD Serializer ---------------------
 
@@ -46,6 +47,7 @@ class CustomerSerializer(serializers.ModelSerializer):
 
         return super().update(instance, validated_data)
     
+
 # --------------------- CUSTOMER Login Serializer ---------------------
 
 class RegisterCustomerSerializer(serializers.ModelSerializer):
@@ -148,6 +150,7 @@ class CustomerLoginSerializer(serializers.Serializer):
     def create(self, validated_data):
         return validated_data
 
+
 # --------------------- CUSTOMER Forgot-password Serializer ---------------------
 
 class ForgotPasswordSerializer(serializers.Serializer):
@@ -213,4 +216,74 @@ class NewsSerializer(serializers.ModelSerializer):
             'updated_at'
         ]
 
+
+# --------------------- Crop-yield-calculator Serializer ---------------------
+
+class YieldCalculationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = YieldCalculation
+        fields = [
+            'id', 'planting_density', 'nitrogen', 'phosphorus', 'potassium',
+            'disease_presence', 'pesticide_usage', 'field_image', 'estimated_yield',
+            'created_at'
+        ]
+
+    def create(self, validated_data):
+        # Constants from the document
+        DOPT_MIN = 0.35
+        DOPT_MAX = 0.40
+        NOPT = 100
+        POPT = 50
+        KOPT = 50
+        BASE_YIELD = 20  # Baseline yield in tons/acre (average from document)
+        BASE_YRANGE = 10  # Assumed yield range for scaling (adjustable)
+
+        # Extract data
+        planting_density = validated_data['planting_density']
+        nitrogen = validated_data['nitrogen']
+        phosphorus = validated_data['phosphorus']
+        potassium = validated_data['potassium']
+        disease_presence = validated_data['disease_presence']
+        pesticide_usage = validated_data['pesticide_usage']
+        field_image = validated_data.get('field_image')
+
+        # Step 1: Yield based on planting density
+        if planting_density < DOPT_MIN:
+            yield_density = BASE_YIELD - (1 - (planting_density / DOPT_MIN)) * 0.5 * BASE_YRANGE
+        elif DOPT_MIN <= planting_density <= DOPT_MAX:
+            yield_density = BASE_YIELD
+        else:
+            overcrowding_penalty = 0.08 * BASE_YRANGE
+            yield_density = BASE_YIELD - overcrowding_penalty
+
+        # Step 2: Fertilizer bonus
+        n_score = min(nitrogen / NOPT, 1)
+        p_score = min(phosphorus / POPT, 1)
+        k_score = min(potassium / KOPT, 1)
+        total_fertilizer_score = (n_score + p_score + k_score) / 3
+        fertilizer_bonus = total_fertilizer_score * 1  # Max 1 ton
+
+        # Step 3: Disease penalty
+        disease_penalty = 1.0 if disease_presence else 0
+
+        # Step 4: Pesticide bonus
+        pesticide_bonus = {0: 0, 1: 0.5, 2: 1.0}[pesticide_usage]
+
+        # Step 5: Final yield calculation
+        estimated_yield = yield_density + fertilizer_bonus - disease_penalty + pesticide_bonus
+
+        # No constraints on estimated_yield (removed YMIN, YMAX limits)
+
+        # Create instance
+        yield_calculation = YieldCalculation.objects.create(
+            planting_density=planting_density,
+            nitrogen=nitrogen,
+            phosphorus=phosphorus,
+            potassium=potassium,
+            disease_presence=disease_presence,
+            pesticide_usage=pesticide_usage,
+            field_image=field_image,
+            estimated_yield=estimated_yield
+        )
+        return yield_calculation
 
