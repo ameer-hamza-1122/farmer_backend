@@ -1,12 +1,13 @@
 from customer import views
 from django.conf import settings
-from .views import CustomerViewSet
+from .views import CustomerViewSet, YieldCalculationViewSet
 from django.urls import path, include
 from django.conf.urls.static import static
 from rest_framework.routers import DefaultRouter
 
 router = DefaultRouter()
 router.register(r'customer/create', CustomerViewSet, basename='customer')
+router.register(r'customer/yield-calculations', YieldCalculationViewSet)
 
 urlpatterns = [
     path('', include(router.urls)),

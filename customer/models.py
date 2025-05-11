@@ -118,3 +118,23 @@ class News(models.Model):
         return f"{self.id} - {self.title}"
 
 
+# ------------------------- Crop-yield Models-------------------------
+
+class YieldCalculation(models.Model):
+    planting_density = models.FloatField()  # Plants per square foot
+    nitrogen = models.FloatField()  # Nitrogen in kg/acre
+    phosphorus = models.FloatField()  # Phosphorus in kg/acre
+    potassium = models.FloatField()  # Potassium in kg/acre
+    disease_presence = models.BooleanField(default=False)  # Early Blight: Yes/No
+    pesticide_usage = models.IntegerField(choices=(
+        (0, 'None'),
+        (1, 'Regular'),
+        (2, 'Intensive'),
+    ))  # Pesticide usage level
+    field_image = models.ImageField(upload_to='potato_fields/', null=True, blank=True)
+    estimated_yield = models.FloatField(null=True, blank=True)  # Calculated yield in tons/acre
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Yield Calculation - {self.created_at}"
+
