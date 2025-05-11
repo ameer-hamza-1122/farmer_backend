@@ -1,11 +1,14 @@
 import os
 import re
 import json
+import time
+from mistralai import Mistral
 from django.conf import settings
 from customer import serializers
 from django.db.models import Func
 from rest_framework import status
 from smtplib import SMTPException
+from mistralai.models import SDKError
 from django.core.mail import send_mail
 from rest_framework.views import APIView
 from django.core.mail import BadHeaderError
@@ -270,4 +273,58 @@ class RandomNewsAPIView(APIView):
             return Response({
                 "error": f"Error retrieving news items: {str(e)}"
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+# --------------------- GROK API-Key APIView ---------------------
+
+class AIChatView(APIView):
+    authentication_classes = (CustomJWTAuthentication,)
+    permission_classes = (IsCustomer,)
+    
+    def post(self, request):
+        # Extract content from request body
+        content = request.data.get('content')
+        if not content:
+            return Response(
+                {"error": "Content is required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Initialize Mistral client
+        api_key = settings.MISTRAL_API_KEY
+        client = Mistral(api_key=api_key)
+
+        def make_request_with_retry(client, model, messages, max_retries=3):
+            for attempt in range(max_retries):
+                try:
+                    response = client.chat.complete(
+                        model=model,
+                        messages=messages
+                    )
+                    return response
+                except SDKError as e:
+                    if "429" in str(e):
+                        wait_time = 2 ** attempt  # Exponential backoff
+                        print(f"Rate limit hit, waiting {wait_time} seconds...")
+                        time.sleep(wait_time)
+                    else:
+                        raise e
+            raise Exception("Max retries exceeded")
+
+        try:
+            # Make request to Mistral AI
+            response = make_request_with_retry(
+                client=client,
+                model="mistral-large-latest",
+                messages=[{"role": "user", "content": content}]
+            )
+            return Response(
+                {"response": response.choices[0].message.content},
+                status=status.HTTP_200_OK
+            )
+        except Exception as e:
+            return Response(
+                {"error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 

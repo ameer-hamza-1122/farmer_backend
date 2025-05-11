@@ -30,4 +30,7 @@ urlpatterns = [
     path('customer/news/bulk-create/', views.BulkNewsCreateAPIView.as_view(), name='bulk-news-create'),
     path('customer/news/', views.RandomNewsAPIView.as_view(), name='get-random-news'),
 
+    # ------------------------------ GROK API-Key Endpoints ------------------------------
+    path('customer/mistral-api/', views.AIChatView.as_view(), name='potato-crop-lifecycle'),
+
 ]
