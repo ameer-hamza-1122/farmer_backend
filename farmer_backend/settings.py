@@ -33,6 +33,9 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 SECRET_KEY = 'django-insecure-erds%_@w2a1w8^2-x+^(1xslw$(bqmd6nyj0qz1po_(4cyn9(x'
 OPENWEATHERMAP_API_KEY = '9ce3cd837a9e8e65e5fe2d0fdba6ab9f'
 
+# Mistral API Key
+MISTRAL_API_KEY = 'DRa2HjUWf0yUsMbf61UBXYjFzNPcrYc3'
+
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
@@ -137,6 +140,11 @@ REST_FRAMEWORK = {
     ),
     'DEFAULT_PAGINATION_CLASS': 'authentication.LargeResultsSetPagination',
     'DEFAULT_FILTER_BACKENDS': ['django_filters.rest_framework.DjangoFilterBackend'],
+    'DEFAULT_PARSER_CLASSES': [
+        'rest_framework.parsers.JSONParser',
+        'rest_framework.parsers.FormParser',
+        'rest_framework.parsers.MultiPartParser',
+    ]
 }
 
 
