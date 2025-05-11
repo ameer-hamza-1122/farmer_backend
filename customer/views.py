@@ -275,7 +275,7 @@ class RandomNewsAPIView(APIView):
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-# --------------------- GROK API-Key APIView ---------------------
+# --------------------- Mistral API-Key APIView ---------------------
 
 class AIChatView(APIView):
     authentication_classes = (CustomJWTAuthentication,)
