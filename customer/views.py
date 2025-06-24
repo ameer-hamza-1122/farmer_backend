@@ -277,6 +277,20 @@ class RandomNewsAPIView(APIView):
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+class NewsDetailView(APIView):
+    authentication_classes = (CustomJWTAuthentication,)
+    permission_classes = (IsCustomer,)
+
+    def get(self, request, news_id):
+        try:
+            news = News.objects.get(id=news_id)
+            serializer = NewsSerializer(news)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except News.DoesNotExist:
+            return Response({"error": "News not found"}, status=status.HTTP_404_NOT_FOUND)
+        except ValueError:
+            return Response({"error": "Invalid News ID"}, status=status.HTTP_400_BAD_REQUEST)
+
 # --------------------- Mistral API-Key APIView ---------------------
 
 class AIChatView(APIView):
@@ -287,6 +301,9 @@ class AIChatView(APIView):
         # Extract acres from request body
         acres = request.data.get('acres')
         disease = request.data.get('disease')
+        crop_age = request.data.get('crop_age')
+        fertilizer = request.data.get('fertilizer')
+
         # Optional: Validate disease input
         if disease and not isinstance(disease, str):
             return Response(
@@ -307,6 +324,39 @@ class AIChatView(APIView):
         except (ValueError, TypeError):
             return Response(
                 {"error": "Invalid input: Acres must be a positive number"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Optional: Validate crop_age input
+        if not crop_age:
+            return Response(
+                {"error": "Crop age is required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            crop_age = int(crop_age)
+            if crop_age < 0:
+                raise ValueError("Crop age must be a non-negative integer")
+        except (ValueError, TypeError):
+            return Response(
+                {"error": "Invalid input: Crop age must be a non-negative integer"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Optional: Validate fertilizer input
+        if not fertilizer:
+            return Response(
+                {"error": "Fertilizer details are required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        try:
+            fertilizer = float(fertilizer)
+            if fertilizer < 0:
+                raise ValueError("Fertilizer amount must be a non-negative number")
+        except (ValueError, TypeError):
+            return Response(
+                {"error": "Invalid input: Fertilizer must be a non-negative number"},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
@@ -335,6 +385,8 @@ class AIChatView(APIView):
         prompt = (
             f"A farmer has {acres} acres of potato crops. Provide detailed recommendations for the amount of fertilizer, "
             f"{f' affected by {disease}' if disease else ''}. "
+            f"{'Age of the crop is ' + str(crop_age) + ' monthd.'} "
+            f"{'Fertilizer amount is ' + str(fertilizer) + ' kg per acre.' if fertilizer else ''}"
             f"Provide detailed recommendations for the amount of fertilizer, "
             f"macro-fertilizer (nitrogen, phosphorus, potassium), and water required for optimal potato crop growth. "
             f"Include specific quantities (e.g., kg per acre or liters per acre) and any relevant application schedules. "
@@ -363,6 +415,8 @@ class AIChatView(APIView):
                 {
                     "acres": acres,
                     "disease": disease,
+                    "crop age": crop_age,
+                    "fertilizer": fertilizer,
                     "recommendations": ai_response
                 },
                 status=status.HTTP_200_OK
