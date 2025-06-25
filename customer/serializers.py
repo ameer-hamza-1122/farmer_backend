@@ -1,5 +1,6 @@
+import re
 import codecs
-from .models import News
+from .models import News, Shop
 from django.forms import ValidationError
 from rest_framework import serializers, status
 from django.contrib.auth.hashers import make_password
@@ -215,6 +216,60 @@ class NewsSerializer(serializers.ModelSerializer):
             'created_at',
             'updated_at'
         ]
+
+
+# --------------------- Shop Serializer ---------------------
+
+class ShopSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Shop
+        fields = ['id', 'url', 'name', 'image', 'rating', 'location', 'phone_number', 'latitude', 'created_at', 'updated_at']
+
+    def validate_url(self, value):
+        """Validate that the URL is a valid string and starts with http(s)."""
+        if value and (not isinstance(value, str) or not re.match(r'^https?://', value)):
+            raise serializers.ValidationError("URL must be a valid string starting with http:// or https://.")
+        if value and len(value) > 1000:
+            raise serializers.ValidationError("URL exceeds maximum length of 1000 characters.")
+        return value
+
+    def validate_name(self, value):
+        """Validate that the name is a string and does not exceed max length."""
+        if value and (not isinstance(value, str) or len(value) > 1000):
+            raise serializers.ValidationError("Name must be a string with maximum length of 1000 characters.")
+        return value.strip() if value else value
+
+    def validate_image(self, value):
+        """Validate that the image is either None or a valid URL."""
+        if value and (not isinstance(value, str) or not re.match(r'^https?://', value)):
+            raise serializers.ValidationError("Image must be a valid URL starting with http:// or https://.")
+        if value and len(value) > 1000:
+            raise serializers.ValidationError("Image URL exceeds maximum length of 1000 characters.")
+        return value
+
+    def validate_rating(self, value):
+        """Validate that the rating is a string and does not exceed max length."""
+        if value and (not isinstance(value, str) or len(value) > 100):
+            raise serializers.ValidationError("Rating must be a string with maximum length of 100 characters.")
+        return value
+
+    def validate_location(self, value):
+        """Validate that the location is a string and does not exceed max length."""
+        if value and (not isinstance(value, str) or len(value) > 1000):
+            raise serializers.ValidationError("Location must be a string with maximum length of 1000 characters.")
+        return value
+
+    def validate_phone_number(self, value):
+        """Validate that the phone number is a string and does not exceed max length."""
+        if value and (not isinstance(value, str) or len(value) > 100):
+            raise serializers.ValidationError("Phone number must be a string with maximum length of 100 characters.")
+        return value
+
+    def validate_latitude(self, value):
+        """Validate that the latitude is a string and does not exceed max length."""
+        if value and (not isinstance(value, str) or len(value) > 100):
+            raise serializers.ValidationError("Latitude must be a string with maximum length of 100 characters.")
+        return value
 
 
 # --------------------- Crop-yield-calculator Serializer ---------------------
