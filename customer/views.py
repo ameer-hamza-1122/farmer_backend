@@ -18,13 +18,14 @@ from rest_framework.permissions import AllowAny
 from django.utils.crypto import get_random_string
 from django.utils.decorators import method_decorator
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.pagination import PageNumberPagination
 from authentication import CustomJWTAuthentication, IsCustomer
 from rest_framework.exceptions import NotFound, PermissionDenied
 from django.core.paginator import Paginator, PageNotAnInteger, EmptyPage
-from .models import Customer, OneTimePassword, ChatTicket, ChatTicketReply, News
+from .models import Customer, OneTimePassword, ChatTicket, ChatTicketReply, News, Shop
 from rest_framework.generics import CreateAPIView, RetrieveAPIView, ListAPIView
 from rest_framework.decorators import action, permission_classes, authentication_classes
-from .serializers import CustomerLoginSerializer, CustomerSerializer, RegisterCustomerSerializer,ForgotPasswordSerializer, ResetPasswordWithOTPSerializer, NewsSerializer
+from .serializers import CustomerLoginSerializer, CustomerSerializer, RegisterCustomerSerializer,ForgotPasswordSerializer, ResetPasswordWithOTPSerializer, NewsSerializer, ShopSerializer
 
 # --------------------- CUSTOMER GET, UPDATE, DELETE ---------------------
 
@@ -263,17 +264,26 @@ class RandomNewsAPIView(APIView):
     
     def get(self, request):
         try:
-            news_items = News.objects.all().order_by(Func(function='RANDOM'))
-            serializer = NewsSerializer(news_items, many=True)
-            return Response({
-                "message": "Successfully retrieved random news items",
+            # Initialize pagination
+            paginator = PageNumberPagination()
+            # You can set page_size in settings.py or here
+            paginator.page_size = 20
+            # Get all shops ordered randomly
+            news_items = News.objects.all().order_by(Func(function='RANDOM'))            
+            # Apply pagination
+            paginated_items = paginator.paginate_queryset(news_items, request)
+            # Serialize the paginated data
+            serializer = NewsSerializer(paginated_items, many=True)
+            # Return paginated response
+            return paginator.get_paginated_response({
+                "message": "Successfully retrieved random news data.",
                 "count": len(serializer.data),
                 "data": serializer.data
-            }, status=status.HTTP_200_OK)
+            })
             
         except Exception as e:
             return Response({
-                "error": f"Error retrieving news items: {str(e)}"
+                "error": f"Error retrieving news data: {str(e)}"
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
@@ -290,6 +300,110 @@ class NewsDetailView(APIView):
             return Response({"error": "News not found"}, status=status.HTTP_404_NOT_FOUND)
         except ValueError:
             return Response({"error": "Invalid News ID"}, status=status.HTTP_400_BAD_REQUEST)
+
+
+# --------------------- Shop APIView ---------------------
+
+class BulkShopCreateAPIView(APIView):
+    authentication_classes = (CustomJWTAuthentication,)
+    permission_classes = (IsCustomer,)
+
+    def post(self, request):
+        json_file_path = os.path.join(settings.BASE_DIR, 'shop_data.json')
+        
+        try:
+            with open(json_file_path, 'r') as file:
+                shop_data = json.load(file)
+                # Map JSON field names to model field names
+                mapped_data = []
+                for item in shop_data:
+                    # Sanitize image field
+                    image_url = item.get('Image')
+                    
+                    if image_url is None or image_url == '' or not isinstance(image_url, str) or not re.match(r'^https?://', image_url):
+                        image_url = None
+                        
+                    mapped_item = {
+                        'url': item.get('Url', '')[:1000],
+                        'name': item.get('Name', '')[:1000],
+                        'image': image_url[:1000] if image_url else None,
+                        'rating': item.get('Rating', '')[:100],
+                        'location': item.get('Location', '')[:1000],
+                        'phone_number': item.get('Phone number', '')[:100],
+                        'latitude': item.get('Latitude', '')[:100]
+                    }
+                    mapped_data.append(mapped_item)
+
+                serializer = ShopSerializer(data=mapped_data, many=True)
+                if serializer.is_valid():
+                    shop_instances = [
+                        Shop(**item) for item in serializer.validated_data
+                    ]
+                    
+                    Shop.objects.bulk_create(shop_instances)
+                    
+                    return Response({
+                        "message": f"Successfully created {len(shop_instances)} shop items",
+                        "count": len(shop_instances)
+                    }, status=status.HTTP_201_CREATED)
+                else:
+                    print("Serializer errors:", serializer.errors)
+                    return Response({
+                        "error": "Invalid data",
+                        "details": serializer.errors
+                    }, status=status.HTTP_400_BAD_REQUEST)
+                    
+        except FileNotFoundError:
+            return Response({"error": "JSON file not found in project directory"}, status=status.HTTP_404_NOT_FOUND)
+        except json.JSONDecodeError:
+            return Response({"error": "Invalid JSON format in file"}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({"error": f"Error processing shop items: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class RandomShopsAPIView(APIView):
+    authentication_classes = (CustomJWTAuthentication,)
+    permission_classes = (IsCustomer,)
+    
+    def get(self, request):
+        try:
+            # Initialize pagination
+            paginator = PageNumberPagination()
+            # You can set page_size in settings.py or here
+            paginator.page_size = 20
+            # Get all shops ordered randomly
+            shop_items = Shop.objects.all().order_by(Func(function='RANDOM'))            
+            # Apply pagination
+            paginated_items = paginator.paginate_queryset(shop_items, request)
+            # Serialize the paginated data
+            serializer = ShopSerializer(paginated_items, many=True)
+            # Return paginated response
+            return paginator.get_paginated_response({
+                "message": "Successfully retrieved random shops data.",
+                "count": len(serializer.data),
+                "data": serializer.data
+            })
+            
+        except Exception as e:
+            return Response({
+                "error": f"Error retrieving shop data: {str(e)}"
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class ShopDetailView(APIView):
+    authentication_classes = (CustomJWTAuthentication,)
+    permission_classes = (IsCustomer,)
+
+    def get(self, request, shop_id):
+        try:
+            shop = Shop.objects.get(id=shop_id)
+            serializer = ShopSerializer(shop)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Shop.DoesNotExist:
+            return Response({"error": "Shop not found"}, status=status.HTTP_404_NOT_FOUND)
+        except ValueError:
+            return Response({"error": "Invalid Shop ID"}, status=status.HTTP_400_BAD_REQUEST)
+
 
 # --------------------- Mistral API-Key APIView ---------------------
 

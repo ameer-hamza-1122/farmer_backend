@@ -32,6 +32,11 @@ urlpatterns = [
     path('customer/news/', views.RandomNewsAPIView.as_view(), name='get-random-news'),
     path('customer/news/<int:news_id>/', views.NewsDetailView.as_view(), name='news-detail'),
 
+    # ----------------------------- Create-bulk-shops Endpoints -----------------------------
+    path('customer/shops/bulk-create/', views.BulkShopCreateAPIView.as_view(), name='bulk-shop-create'),
+    path('customer/shops/', views.RandomShopsAPIView.as_view(), name='shop-list'),
+    path('customer/shops/<int:shop_id>/', views.ShopDetailView.as_view(), name='shop-detail'),
+
     # ------------------------------ GROK API-Key Endpoints ------------------------------
     path('customer/mistral-api/', views.AIChatView.as_view(), name='potato-crop-lifecycle'),
 

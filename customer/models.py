@@ -118,6 +118,23 @@ class News(models.Model):
         return f"{self.id} - {self.title}"
 
 
+# ------------------------- Shops Models-------------------------
+
+class Shop(models.Model):
+    url = models.URLField(max_length=1000, blank=True, null=True)
+    name = models.CharField(max_length=1000, blank=True, null=True)
+    image = models.URLField(max_length=1000, null=True, blank=True)
+    rating = models.CharField(max_length=100, blank=True, null=True)
+    location = models.CharField(max_length=1000, blank=True, null=True)
+    phone_number = models.CharField(max_length=100, blank=True, null=True)
+    latitude = models.CharField(max_length=100, blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.id} - {self.name}"
+
+
 # ------------------------- Crop-yield Models-------------------------
 
 class YieldCalculation(models.Model):
