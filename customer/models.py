@@ -4,6 +4,7 @@ from django.utils import timezone
 from model_utils.models import TimeStampedModel
 from rest_framework_simplejwt.tokens import SlidingToken
 from phonenumber_field.modelfields import PhoneNumberField
+from django.core.validators import MinValueValidator, MaxValueValidator
 
 # Create your models here.
 
@@ -138,18 +139,67 @@ class Shop(models.Model):
 # ------------------------- Crop-yield Models-------------------------
 
 class YieldCalculation(models.Model):
-    planting_density = models.FloatField()  # Plants per square foot
-    nitrogen = models.FloatField()  # Nitrogen in kg/acre
-    phosphorus = models.FloatField()  # Phosphorus in kg/acre
-    potassium = models.FloatField()  # Potassium in kg/acre
-    disease_presence = models.BooleanField(default=False)  # Early Blight: Yes/No
-    pesticide_usage = models.IntegerField(choices=(
-        (0, 'None'),
-        (1, 'Regular'),
-        (2, 'Intensive'),
-    ))  # Pesticide usage level
-    field_image = models.ImageField(upload_to='potato_fields/', null=True, blank=True)
-    estimated_yield = models.FloatField(null=True, blank=True)  # Calculated yield in tons/acre
+    planting_density = models.FloatField(
+        validators=[MinValueValidator(0.0)],  # Plants per square foot
+        help_text="Plants per square foot"
+    )
+    nitrogen = models.FloatField(
+        validators=[MinValueValidator(0.0)],  # Nitrogen in kg/acre
+        help_text="Nitrogen applied in kg/acre"
+    )
+    phosphorus = models.FloatField(
+        validators=[MinValueValidator(0.0)],  # Phosphorus in kg/acre
+        help_text="Phosphorus applied in kg/acre"
+    )
+    potassium = models.FloatField(
+        validators=[MinValueValidator(0.0)],  # Potassium in kg/acre
+        help_text="Potassium applied in kg/acre"
+    )
+    disease_presence = models.BooleanField(
+        default=False,  # Early Blight: Yes/No
+        help_text="Presence of diseases like early blight"
+    )
+    pesticide_usage = models.IntegerField(
+        choices=(
+            (0, 'None'),
+            (1, 'Regular'),
+            (2, 'Intensive'),
+        ),
+        default=0,
+        help_text="Level of pesticide usage"
+    )
+    leaf_health_score = models.FloatField(
+        validators=[MinValueValidator(0.0), MaxValueValidator(100.0)],
+        default=50.0,  # 0-100 score for leaf health
+        help_text="Leaf health score (0-100, based on visual assessment)"
+    )
+    potato_size = models.CharField(
+        max_length=10,
+        choices=(
+            ('small', 'Small'),
+            ('medium', 'Medium'),
+            ('large', 'Large'),
+        ),
+        default='medium',
+        help_text="Average potato tuber size"
+    )
+    field_image = models.ImageField(
+        upload_to='potato_fields/',
+        null=True,
+        blank=True,
+        help_text="Image of the potato field"
+    )
+    potato_image = models.ImageField(
+        upload_to='potato_images/',
+        null=True,
+        blank=True,
+        help_text="Image of harvested potatoes"
+    )
+    estimated_yield = models.FloatField(
+        null=True,
+        blank=True,
+        help_text="Calculated yield in tons/acre"
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
