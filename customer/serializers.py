@@ -279,19 +279,20 @@ class YieldCalculationSerializer(serializers.ModelSerializer):
         model = YieldCalculation
         fields = [
             'id', 'planting_density', 'nitrogen', 'phosphorus', 'potassium',
-            'disease_presence', 'pesticide_usage', 'field_image', 'estimated_yield',
+            'disease_presence', 'pesticide_usage', 'leaf_health_score',
+            'potato_size', 'field_image', 'potato_image', 'estimated_yield',
             'created_at'
         ]
 
     def create(self, validated_data):
-        # Constants from the document
-        DOPT_MIN = 0.35
+        # Constants
+        DOPT_MIN = 0.30
         DOPT_MAX = 0.40
-        NOPT = 100
-        POPT = 50
-        KOPT = 50
-        BASE_YIELD = 20  # Baseline yield in tons/acre (average from document)
-        BASE_YRANGE = 10  # Assumed yield range for scaling (adjustable)
+        NOPT = 100  # Optimal nitrogen in kg/acre
+        POPT = 50   # Optimal phosphorus in kg/acre
+        KOPT = 50   # Optimal potassium in kg/acre
+        BASE_YIELD = 20  # Baseline yield in tons/acre
+        BASE_YRANGE = 10  # Yield range for scaling
 
         # Extract data
         planting_density = validated_data['planting_density']
@@ -300,7 +301,10 @@ class YieldCalculationSerializer(serializers.ModelSerializer):
         potassium = validated_data['potassium']
         disease_presence = validated_data['disease_presence']
         pesticide_usage = validated_data['pesticide_usage']
+        leaf_health_score = validated_data['leaf_health_score']
+        potato_size = validated_data['potato_size']
         field_image = validated_data.get('field_image')
+        potato_image = validated_data.get('potato_image')
 
         # Step 1: Yield based on planting density
         if planting_density < DOPT_MIN:
@@ -316,18 +320,33 @@ class YieldCalculationSerializer(serializers.ModelSerializer):
         p_score = min(phosphorus / POPT, 1)
         k_score = min(potassium / KOPT, 1)
         total_fertilizer_score = (n_score + p_score + k_score) / 3
-        fertilizer_bonus = total_fertilizer_score * 1  # Max 1 ton
+        fertilizer_bonus = total_fertilizer_score * 2  # Max 2 tons
 
         # Step 3: Disease penalty
-        disease_penalty = 1.0 if disease_presence else 0
+        disease_penalty = 2.0 if disease_presence else 0.0
 
         # Step 4: Pesticide bonus
-        pesticide_bonus = {0: 0, 1: 0.5, 2: 1.0}[pesticide_usage]
+        pesticide_bonus = {0: 0.0, 1: 0.5, 2: 1.0}[pesticide_usage]
 
-        # Step 5: Final yield calculation
-        estimated_yield = yield_density + fertilizer_bonus - disease_penalty + pesticide_bonus
+        # Step 5: Leaf health bonus
+        leaf_health_bonus = (leaf_health_score / 100.0) * 1.5  # Max 1.5 tons
 
-        # No constraints on estimated_yield (removed YMIN, YMAX limits)
+        # Step 6: Potato size factor
+        size_factor_bonus = {
+            'small': -0.5,
+            'medium': 0.0,
+            'large': 0.5
+        }[potato_size]
+
+        # Step 7: Final yield calculation
+        estimated_yield = (
+            yield_density
+            + fertilizer_bonus
+            - disease_penalty
+            + pesticide_bonus
+            + leaf_health_bonus
+            + size_factor_bonus
+        )
 
         # Create instance
         yield_calculation = YieldCalculation.objects.create(
@@ -337,7 +356,10 @@ class YieldCalculationSerializer(serializers.ModelSerializer):
             potassium=potassium,
             disease_presence=disease_presence,
             pesticide_usage=pesticide_usage,
+            leaf_health_score=leaf_health_score,
+            potato_size=potato_size,
             field_image=field_image,
+            potato_image=potato_image,
             estimated_yield=estimated_yield
         )
         return yield_calculation
