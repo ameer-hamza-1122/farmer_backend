@@ -412,65 +412,27 @@ class AIChatView(APIView):
     permission_classes = (IsCustomer,)
     
     def post(self, request):
-        # Extract acres from request body
-        acres = request.data.get('acres')
+        # Extract disease and phase from request body
         disease = request.data.get('disease')
-        crop_age = request.data.get('crop_age')
-        fertilizer = request.data.get('fertilizer')
+        phase = request.data.get('phase')
 
-        # Optional: Validate disease input
+        # Validate disease input (optional)
         if disease and not isinstance(disease, str):
             return Response(
                 {"error": "Invalid input: Disease must be a string"},
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        # Validate input
-        if not acres:
+        # Validate phase input
+        valid_phases = ["Dormancy", "Sprouting", "Vegetative Growth", "Tubering", "Maturation"]
+        if not phase:
             return Response(
-                {"error": "Number of acres is required"},
+                {"error": "Crop phase is required"},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        try:
-            acres = float(acres)
-            if acres <= 0:
-                raise ValueError("Acres must be a positive number")
-        except (ValueError, TypeError):
+        if phase not in valid_phases:
             return Response(
-                {"error": "Invalid input: Acres must be a positive number"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        # Optional: Validate crop_age input
-        if not crop_age:
-            return Response(
-                {"error": "Crop age is required"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        try:
-            crop_age = int(crop_age)
-            if crop_age < 0:
-                raise ValueError("Crop age must be a non-negative integer")
-        except (ValueError, TypeError):
-            return Response(
-                {"error": "Invalid input: Crop age must be a non-negative integer"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        # Optional: Validate fertilizer input
-        if not fertilizer:
-            return Response(
-                {"error": "Fertilizer details are required"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        try:
-            fertilizer = float(fertilizer)
-            if fertilizer < 0:
-                raise ValueError("Fertilizer amount must be a non-negative number")
-        except (ValueError, TypeError):
-            return Response(
-                {"error": "Invalid input: Fertilizer must be a non-negative number"},
+                {"error": f"Invalid phase: Must be one of {', '.join(valid_phases)}"},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
@@ -495,17 +457,46 @@ class AIChatView(APIView):
                         raise e
             raise Exception("Max retries exceeded")
 
-        # Craft prompt to restrict AI to potato crop and fertilizer information only
+        # Craft prompt based on phase and disease
+        phase_guidelines = {
+            "Dormancy": (
+                "The potato is in the dormancy phase, a state of rest following the previous harvest. "
+                "The tuber preserves energy reserves, with temperature and moisture being critical. "
+                "Provide recommendations for maintaining optimal storage conditions (e.g., temperature, humidity) "
+                "and preparing tubers for planting. Include any specific actions to prevent disease if present."
+            ),
+            "Sprouting": (
+                "The potato is in the sprouting phase, where eyes develop into tender stems. "
+                "Uniform and robust sprouting is essential. Provide recommendations for soil preparation, "
+                "planting techniques, water requirements (in liters per hectare), and initial fertilizer needs "
+                "(nitrogen, phosphorus, potassium in kg per hectare). Include disease management if applicable."
+            ),
+            "Vegetative Growth": (
+                "The potato is in the vegetative growth phase, with a green canopy expanding rapidly. "
+                "Optimal soil moisture, nutrient balance, and disease resistance are key. Provide recommendations "
+                "for water requirements (in liters per hectare), fertilizer application (nitrogen, phosphorus, potassium "
+                "in kg per hectare), and application schedules. Include disease management strategies if applicable."
+            ),
+            "Tubering": (
+                "The potato is in the tubering phase, where stolons form tubers underground. "
+                "Sufficient spacing and controlled environments are critical. Provide recommendations for water "
+                "requirements (in liters per hectare), fertilizer application (nitrogen, phosphorus, potassium in kg per hectare), "
+                "and soil management. Include disease management strategies if applicable."
+            ),
+            "Maturation": (
+                "The potato is in the maturation phase, preparing for harvest. Timing and crop health are critical. "
+                "Provide recommendations for water requirements (in liters per hectare), reducing fertilizer use, "
+                "and identifying harvest readiness. Include disease management strategies if applicable."
+            )
+        }
+
         prompt = (
-            f"A farmer has {acres} acres of potato crops. Provide detailed recommendations for the amount of fertilizer, "
-            f"{f' affected by {disease}' if disease else ''}. "
-            f"{'Age of the crop is ' + str(crop_age) + ' monthd.'} "
-            f"{'Fertilizer amount is ' + str(fertilizer) + ' kg per acre.' if fertilizer else ''}"
-            f"Provide detailed recommendations for the amount of fertilizer, "
-            f"macro-fertilizer (nitrogen, phosphorus, potassium), and water required for optimal potato crop growth. "
-            f"Include specific quantities (e.g., kg per acre or liters per acre) and any relevant application schedules. "
-            f"Focus only on potato crops, fertilizers, and water requirements. Do not provide information on other crops, "
-            f"pesticides, or unrelated topics."
+            f"The potato crop is in the {phase} phase. "
+            f"{f'It is affected by {disease}. ' if disease else ''}"
+            f"{phase_guidelines[phase]} "
+            f"Focus only on potato crops, water requirements, macro-fertilizer (nitrogen, phosphorus, potassium), "
+            f"and disease management (if specified). Provide specific quantities (e.g., kg per hectare or liters per hectare) "
+            f"and application schedules where applicable. Do not provide information on other crops, pesticides, or unrelated topics."
         )
 
         try:
@@ -517,8 +508,8 @@ class AIChatView(APIView):
             )
             ai_response = response.choices[0].message.content
 
-            # Optional: Validate response to ensure it adheres to restrictions
-            restricted_keywords = ["pesticide", "herbicide", "wheat", "corn", "rice"]  # Add more as needed
+            # Validate response to ensure it adheres to restrictions
+            restricted_keywords = ["pesticide", "herbicide", "wheat", "corn", "rice"]
             if any(keyword in ai_response.lower() for keyword in restricted_keywords):
                 return Response(
                     {"error": "AI response contains restricted information"},
@@ -527,10 +518,8 @@ class AIChatView(APIView):
 
             return Response(
                 {
-                    "acres": acres,
+                    "phase": phase,
                     "disease": disease,
-                    "crop age": crop_age,
-                    "fertilizer": fertilizer,
                     "recommendations": ai_response
                 },
                 status=status.HTTP_200_OK
