@@ -609,17 +609,3 @@ class YieldCalculationViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         serializer.save()
 
-
-
-# -------------------- Filters --------------------
-# Shops
-    # name
-    # location
-
-# News
-    # author_name
-    # title
-
-# List_all_chat_tickets
-    # subject
-
