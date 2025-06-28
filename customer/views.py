@@ -159,9 +159,41 @@ class ListAllChatTickets(APIView):
     permission_classes = (IsCustomer,)
 
     def get(self, request):
-        chat_tickets = ChatTicket.objects.all().order_by('-created_on')
-        serializer = serializers.ChatTicketSerializer(chat_tickets, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        try:
+            # Initialize pagination
+            paginator = PageNumberPagination()
+            paginator.page_size = 20
+            
+            # Get query parameter for filtering
+            subject_filter = request.query_params.get('subject', None)
+            
+            # Start with all chat tickets
+            chat_tickets = ChatTicket.objects.all()
+            
+            # Apply filter if provided
+            if subject_filter:
+                chat_tickets = chat_tickets.filter(subject__icontains=subject_filter)
+            
+            # Apply ordering
+            chat_tickets = chat_tickets.order_by('-created_on')
+            
+            # Apply pagination
+            paginated_items = paginator.paginate_queryset(chat_tickets, request)
+            
+            # Serialize the paginated data
+            serializer = serializers.ChatTicketSerializer(paginated_items, many=True)
+            
+            # Return paginated response
+            return paginator.get_paginated_response({
+                "message": "Successfully retrieved chat tickets data.",
+                "count": len(serializer.data),
+                "data": serializer.data
+            })
+            
+        except Exception as e:
+            return Response({
+                "error": f"Error retrieving chat tickets data: {str(e)}"
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class TicketDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
@@ -266,14 +298,30 @@ class RandomNewsAPIView(APIView):
         try:
             # Initialize pagination
             paginator = PageNumberPagination()
-            # You can set page_size in settings.py or here
             paginator.page_size = 20
-            # Get all shops ordered randomly
-            news_items = News.objects.all().order_by(Func(function='RANDOM'))            
+            
+            # Get query parameters for filtering
+            author_name_filter = request.query_params.get('author_name', None)
+            title_filter = request.query_params.get('title', None)
+            
+            # Start with all news items
+            news_items = News.objects.all()
+            
+            # Apply filters if provided
+            if author_name_filter:
+                news_items = news_items.filter(author_name__icontains=author_name_filter)
+            if title_filter:
+                news_items = news_items.filter(title__icontains=title_filter)
+            
+            # Apply random ordering
+            news_items = news_items.order_by(Func(function='RANDOM'))
+            
             # Apply pagination
             paginated_items = paginator.paginate_queryset(news_items, request)
+            
             # Serialize the paginated data
             serializer = NewsSerializer(paginated_items, many=True)
+            
             # Return paginated response
             return paginator.get_paginated_response({
                 "message": "Successfully retrieved random news data.",
@@ -369,14 +417,30 @@ class RandomShopsAPIView(APIView):
         try:
             # Initialize pagination
             paginator = PageNumberPagination()
-            # You can set page_size in settings.py or here
             paginator.page_size = 20
-            # Get all shops ordered randomly
-            shop_items = Shop.objects.all().order_by(Func(function='RANDOM'))            
+            
+            # Get query parameters for filtering
+            name_filter = request.query_params.get('name', None)
+            location_filter = request.query_params.get('location', None)
+            
+            # Start with all shops
+            shop_items = Shop.objects.all()
+            
+            # Apply filters if provided
+            if name_filter:
+                shop_items = shop_items.filter(name__icontains=name_filter)
+            if location_filter:
+                shop_items = shop_items.filter(location__icontains=location_filter)
+            
+            # Apply random ordering
+            shop_items = shop_items.order_by(Func(function='RANDOM'))
+            
             # Apply pagination
             paginated_items = paginator.paginate_queryset(shop_items, request)
+            
             # Serialize the paginated data
             serializer = ShopSerializer(paginated_items, many=True)
+            
             # Return paginated response
             return paginator.get_paginated_response({
                 "message": "Successfully retrieved random shops data.",
@@ -544,4 +608,18 @@ class YieldCalculationViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save()
+
+
+
+# -------------------- Filters --------------------
+# Shops
+    # name
+    # location
+
+# News
+    # author_name
+    # title
+
+# List_all_chat_tickets
+    # subject
 
