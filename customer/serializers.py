@@ -275,6 +275,9 @@ class ShopSerializer(serializers.ModelSerializer):
 # --------------------- Crop-yield-calculator Serializer ---------------------
 
 class YieldCalculationSerializer(serializers.ModelSerializer):
+    field_image = serializers.ImageField(required=True, allow_null=False)
+    potato_image = serializers.ImageField(required=True, allow_null=False)
+
     class Meta:
         model = YieldCalculation
         fields = [

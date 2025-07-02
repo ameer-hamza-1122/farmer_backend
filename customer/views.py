@@ -599,12 +599,14 @@ class AIChatView(APIView):
 
 from .models import YieldCalculation
 from .serializers import YieldCalculationSerializer
+from rest_framework.parsers import MultiPartParser, FormParser
 
 class YieldCalculationViewSet(viewsets.ModelViewSet):
     serializer_class = YieldCalculationSerializer
     authentication_classes = (CustomJWTAuthentication,)
     permission_classes = (IsCustomer,)
     queryset = YieldCalculation.objects.all()
+    parser_classes = (MultiPartParser, FormParser)
 
     def perform_create(self, serializer):
         serializer.save()
