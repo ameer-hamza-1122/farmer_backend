@@ -1,12 +1,13 @@
 from customer import views
 from django.conf import settings
-from .views import CustomerViewSet
+from .views import CustomerViewSet, YieldCalculationViewSet
 from django.urls import path, include
 from django.conf.urls.static import static
 from rest_framework.routers import DefaultRouter
 
 router = DefaultRouter()
-router.register(r'create', CustomerViewSet, basename='customer')
+router.register(r'customer/create', CustomerViewSet, basename='customer')
+router.register(r'customer/yield-calculations', YieldCalculationViewSet)
 
 urlpatterns = [
     path('', include(router.urls)),
@@ -29,5 +30,17 @@ urlpatterns = [
     # ------------------------------ Create-bulk-news Endpoints ------------------------------
     path('customer/news/bulk-create/', views.BulkNewsCreateAPIView.as_view(), name='bulk-news-create'),
     path('customer/news/', views.RandomNewsAPIView.as_view(), name='get-random-news'),
+    path('customer/news/<int:news_id>/', views.NewsDetailView.as_view(), name='news-detail'),
 
-] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    # ----------------------------- Create-bulk-shops Endpoints -----------------------------
+    path('customer/shops/bulk-create/', views.BulkShopCreateAPIView.as_view(), name='bulk-shop-create'),
+    path('customer/shops/', views.RandomShopsAPIView.as_view(), name='shop-list'),
+    path('customer/shops/<int:shop_id>/', views.ShopDetailView.as_view(), name='shop-detail'),
+
+    # ------------------------------ GROK API-Key Endpoints ------------------------------
+    path('customer/mistral-api/', views.AIChatView.as_view(), name='potato-crop-lifecycle'),
+
+    # ------------------------- Leaf-Disease-Detection Endpoints -------------------------
+    path('customer/leaf-disease-detection/', views.LeafDiseaseDetectionView.as_view(), name='leaf-disease-detection'),
+
+]
