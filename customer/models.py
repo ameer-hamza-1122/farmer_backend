@@ -205,3 +205,26 @@ class YieldCalculation(models.Model):
     def __str__(self):
         return f"Yield Calculation - {self.created_at}"
 
+
+# ------------------------- Leaf-Disease Models-------------------------
+class LeafDisease(models.Model):
+    image = models.ImageField(upload_to='leaf_diseases/', blank=True, null=True)
+    Choice = models.CharField(
+        max_length=100,
+        choices=[
+            ('Bacteria', 'Bacteria'),
+            ('Fungi', 'Fungi'),
+            ('Healthy', 'Healthy'),
+            ('Nematode', 'Nematode'),
+            ('Pest', 'Pest'),
+            ('Phytopthora', 'Phytopthora'),
+            ('Virus', 'Virus')
+        ],
+        default='Healthy'
+    )
+    disease_type = models.CharField(max_length=100, blank=True, null=True)
+
+    def __str__(self):
+        return f"{self.id} - {self.Choice} - {self.disease_type}"
+
+
