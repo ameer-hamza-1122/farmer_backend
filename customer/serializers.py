@@ -1,11 +1,12 @@
+import re
 import codecs
-from .models import News
+from .models import News, Shop
 from django.forms import ValidationError
 from rest_framework import serializers, status
 from django.contrib.auth.hashers import make_password
 from rest_framework.exceptions import PermissionDenied
 from authentication import IsCustomer, decrypt_password
-from .models import Customer, ChatTicket, ChatTicketReply
+from .models import Customer, ChatTicket, ChatTicketReply, YieldCalculation
 
 
 # --------------------- Custom Validation Error Class ---------------------
@@ -19,6 +20,7 @@ class CustomValidationError(PermissionDenied):
         self.detail = detail if detail else self.default_detail
         if status_code is not None:
             self.status_code = status_code
+
 
 # --------------------- CUSTOMER CRUD Serializer ---------------------
 
@@ -46,6 +48,7 @@ class CustomerSerializer(serializers.ModelSerializer):
 
         return super().update(instance, validated_data)
     
+
 # --------------------- CUSTOMER Login Serializer ---------------------
 
 class RegisterCustomerSerializer(serializers.ModelSerializer):
@@ -109,7 +112,10 @@ class CustomerLoginSerializer(serializers.Serializer):
 
     def get_image(self, obj):
         customer = Customer.objects.filter(email=obj['email']).last()
-        return customer.image.url if customer and customer.image else None
+        if customer and customer.image:
+            request = self.context.get('request')
+            return request.build_absolute_uri(customer.image.url) if request else f"http://localhost:8009{customer.image.url}"
+        return None
 
     def get_created_on(self, obj):
         customer = Customer.objects.filter(email=obj['email']).last()
@@ -144,6 +150,7 @@ class CustomerLoginSerializer(serializers.Serializer):
 
     def create(self, validated_data):
         return validated_data
+
 
 # --------------------- CUSTOMER Forgot-password Serializer ---------------------
 
@@ -210,4 +217,160 @@ class NewsSerializer(serializers.ModelSerializer):
             'updated_at'
         ]
 
+
+# --------------------- Shop Serializer ---------------------
+
+class ShopSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Shop
+        fields = ['id', 'url', 'name', 'image', 'rating', 'location', 'phone_number', 'latitude', 'created_at', 'updated_at']
+
+    def validate_url(self, value):
+        """Validate that the URL is a valid string and starts with http(s)."""
+        if value and (not isinstance(value, str) or not re.match(r'^https?://', value)):
+            raise serializers.ValidationError("URL must be a valid string starting with http:// or https://.")
+        if value and len(value) > 1000:
+            raise serializers.ValidationError("URL exceeds maximum length of 1000 characters.")
+        return value
+
+    def validate_name(self, value):
+        """Validate that the name is a string and does not exceed max length."""
+        if value and (not isinstance(value, str) or len(value) > 1000):
+            raise serializers.ValidationError("Name must be a string with maximum length of 1000 characters.")
+        return value.strip() if value else value
+
+    def validate_image(self, value):
+        """Validate that the image is either None or a valid URL."""
+        if value and (not isinstance(value, str) or not re.match(r'^https?://', value)):
+            raise serializers.ValidationError("Image must be a valid URL starting with http:// or https://.")
+        if value and len(value) > 1000:
+            raise serializers.ValidationError("Image URL exceeds maximum length of 1000 characters.")
+        return value
+
+    def validate_rating(self, value):
+        """Validate that the rating is a string and does not exceed max length."""
+        if value and (not isinstance(value, str) or len(value) > 100):
+            raise serializers.ValidationError("Rating must be a string with maximum length of 100 characters.")
+        return value
+
+    def validate_location(self, value):
+        """Validate that the location is a string and does not exceed max length."""
+        if value and (not isinstance(value, str) or len(value) > 1000):
+            raise serializers.ValidationError("Location must be a string with maximum length of 1000 characters.")
+        return value
+
+    def validate_phone_number(self, value):
+        """Validate that the phone number is a string and does not exceed max length."""
+        if value and (not isinstance(value, str) or len(value) > 100):
+            raise serializers.ValidationError("Phone number must be a string with maximum length of 100 characters.")
+        return value
+
+    def validate_latitude(self, value):
+        """Validate that the latitude is a string and does not exceed max length."""
+        if value and (not isinstance(value, str) or len(value) > 100):
+            raise serializers.ValidationError("Latitude must be a string with maximum length of 100 characters.")
+        return value
+
+
+# --------------------- Crop-yield-calculator Serializer ---------------------
+
+class YieldCalculationSerializer(serializers.ModelSerializer):
+    field_image = serializers.ImageField(required=True, allow_null=False)
+    potato_image = serializers.ImageField(required=True, allow_null=False)
+
+    class Meta:
+        model = YieldCalculation
+        fields = [
+            'id', 'planting_density', 'nitrogen', 'phosphorus', 'potassium',
+            'disease_presence', 'pesticide_usage', 'leaf_health_score',
+            'potato_size', 'field_image', 'potato_image', 'estimated_yield',
+            'created_at'
+        ]
+
+    def create(self, validated_data):
+        # Constants
+        DOPT_MIN = 0.30
+        DOPT_MAX = 0.40
+        NOPT = 100  # Optimal nitrogen in kg/acre
+        POPT = 50   # Optimal phosphorus in kg/acre
+        KOPT = 50   # Optimal potassium in kg/acre
+        BASE_YIELD = 20  # Baseline yield in tons/acre
+        BASE_YRANGE = 10  # Yield range for scaling
+
+        # Extract data
+        planting_density = validated_data['planting_density']
+        nitrogen = validated_data['nitrogen']
+        phosphorus = validated_data['phosphorus']
+        potassium = validated_data['potassium']
+        disease_presence = validated_data['disease_presence']
+        pesticide_usage = validated_data['pesticide_usage']
+        leaf_health_score = validated_data['leaf_health_score']
+        potato_size = validated_data['potato_size']
+        field_image = validated_data.get('field_image')
+        potato_image = validated_data.get('potato_image')
+
+        # Step 1: Yield based on planting density
+        if planting_density < DOPT_MIN:
+            yield_density = BASE_YIELD - (1 - (planting_density / DOPT_MIN)) * 0.5 * BASE_YRANGE
+        elif DOPT_MIN <= planting_density <= DOPT_MAX:
+            yield_density = BASE_YIELD
+        else:
+            overcrowding_penalty = 0.08 * BASE_YRANGE
+            yield_density = BASE_YIELD - overcrowding_penalty
+
+        # Step 2: Fertilizer bonus
+        n_score = min(nitrogen / NOPT, 1)
+        p_score = min(phosphorus / POPT, 1)
+        k_score = min(potassium / KOPT, 1)
+        total_fertilizer_score = (n_score + p_score + k_score) / 3
+        fertilizer_bonus = total_fertilizer_score * 2  # Max 2 tons
+
+        # Step 3: Disease penalty
+        disease_penalty = 2.0 if disease_presence else 0.0
+
+        # Step 4: Pesticide bonus
+        pesticide_bonus = {0: 0.0, 1: 0.5, 2: 1.0}[pesticide_usage]
+
+        # Step 5: Leaf health bonus
+        leaf_health_bonus = (leaf_health_score / 100.0) * 1.5  # Max 1.5 tons
+
+        # Step 6: Potato size factor
+        size_factor_bonus = {
+            'small': -0.5,
+            'medium': 0.0,
+            'large': 0.5
+        }[potato_size]
+
+        # Step 7: Final yield calculation
+        estimated_yield = (
+            yield_density
+            + fertilizer_bonus
+            - disease_penalty
+            + pesticide_bonus
+            + leaf_health_bonus
+            + size_factor_bonus
+        )
+
+        # Create instance
+        yield_calculation = YieldCalculation.objects.create(
+            planting_density=planting_density,
+            nitrogen=nitrogen,
+            phosphorus=phosphorus,
+            potassium=potassium,
+            disease_presence=disease_presence,
+            pesticide_usage=pesticide_usage,
+            leaf_health_score=leaf_health_score,
+            potato_size=potato_size,
+            field_image=field_image,
+            potato_image=potato_image,
+            estimated_yield=estimated_yield
+        )
+        return yield_calculation
+
+
+
+# --------------------- Leaf-Disease-Detection Serializer ---------------------
+
+class LeafDiseaseDetectionSerializer(serializers.Serializer):
+    image = serializers.ImageField()
 
