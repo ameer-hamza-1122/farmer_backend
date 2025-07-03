@@ -24,3 +24,7 @@ EXPOSE 8009
 
 # Run Django server
 CMD ["python", "manage.py", "runserver", "0.0.0.0:8009"]
+
+# Set TensorFlow logging level to reduce verbosity
+ENV TF_CPP_MIN_LOG_LEVEL=2
+
