@@ -2,6 +2,9 @@ import os
 import re
 import json
 import time
+import numpy as np
+from PIL import Image
+from io import BytesIO
 from mistralai import Mistral
 from django.conf import settings
 from customer import serializers
@@ -14,18 +17,23 @@ from rest_framework.views import APIView
 from django.core.mail import BadHeaderError
 from rest_framework.response import Response
 from rest_framework import viewsets, generics
+from tensorflow.keras.models import load_model
 from rest_framework.permissions import AllowAny
+from tensorflow.keras.preprocessing import image
 from django.utils.crypto import get_random_string
 from django.utils.decorators import method_decorator
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.pagination import PageNumberPagination
+from rest_framework.parsers import MultiPartParser, FormParser
 from authentication import CustomJWTAuthentication, IsCustomer
 from rest_framework.exceptions import NotFound, PermissionDenied
+from tensorflow.keras.applications.densenet import preprocess_input
 from django.core.paginator import Paginator, PageNotAnInteger, EmptyPage
-from .models import Customer, OneTimePassword, ChatTicket, ChatTicketReply, News, Shop
+from .models import Customer, OneTimePassword, ChatTicket, ChatTicketReply, News, Shop, YieldCalculation, LeafDisease
 from rest_framework.generics import CreateAPIView, RetrieveAPIView, ListAPIView
 from rest_framework.decorators import action, permission_classes, authentication_classes
-from .serializers import CustomerLoginSerializer, CustomerSerializer, RegisterCustomerSerializer,ForgotPasswordSerializer, ResetPasswordWithOTPSerializer, NewsSerializer, ShopSerializer
+from .serializers import CustomerLoginSerializer, CustomerSerializer, RegisterCustomerSerializer,ForgotPasswordSerializer, ResetPasswordWithOTPSerializer, NewsSerializer, ShopSerializer, YieldCalculationSerializer, LeafDiseaseDetectionSerializer
+
 
 # --------------------- CUSTOMER GET, UPDATE, DELETE ---------------------
 
@@ -597,10 +605,6 @@ class AIChatView(APIView):
 
 # --------------------- Crop-yield-calculator APIView ---------------------
 
-from .models import YieldCalculation
-from .serializers import YieldCalculationSerializer
-from rest_framework.parsers import MultiPartParser, FormParser
-
 class YieldCalculationViewSet(viewsets.ModelViewSet):
     serializer_class = YieldCalculationSerializer
     authentication_classes = (CustomJWTAuthentication,)
@@ -610,4 +614,55 @@ class YieldCalculationViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save()
+
+
+# --------------------- Leaf-Disease-Detection APIView ---------------------
+
+# Suppress TensorFlow logs
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+
+class LeafDiseaseDetectionView(APIView):
+    authentication_classes = (CustomJWTAuthentication,)
+    permission_classes = (IsCustomer,)
+
+    def post(self, request, *args, **kwargs):
+        model = load_model("leaf_disease_model.h5")
+        serializer = LeafDiseaseDetectionSerializer(data=request.data)
+
+        class_label = ['Bacteria', 'Fungi', 'Healthy', 'Nematode', 'Pest', 'Phytopthora', 'Virus']
+
+        if serializer.is_valid():
+            uploaded_file = serializer.validated_data['image']
+            try:
+                # Read the file into a BytesIO object
+                img_data = uploaded_file.read()
+                img_io = BytesIO(img_data)
+
+                # Open the image with PIL
+                img = Image.open(img_io).convert('RGB')  # Ensure RGB format
+                img = img.resize((256, 256))  # Resize to match model input (256, 256)
+
+                # Convert to array and preprocess
+                img_array = image.img_to_array(img)
+                img_array = np.expand_dims(img_array, axis=0)  # Add batch dimension
+                img_array = preprocess_input(img_array)  # Preprocess for DenseNet
+
+                # Predict
+                preds = model.predict(img_array)
+                predicted_class = int(preds[0][0] > 0.5) if preds.shape[-1] == 1 else int(np.argmax(preds))
+
+                # Create LeafDisease model instance
+                leaf_disease = LeafDisease(
+                    image=uploaded_file,
+                    Choice=class_label[predicted_class],
+                    disease_type=class_label[predicted_class]
+                )
+                leaf_disease.save()
+                
+                return Response({'predicted_class': predicted_class, 
+                                 "Disease" : class_label[predicted_class]}, status=status.HTTP_200_OK)
+            except Exception as e:
+                return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 

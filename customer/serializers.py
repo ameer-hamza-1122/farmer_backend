@@ -367,3 +367,10 @@ class YieldCalculationSerializer(serializers.ModelSerializer):
         )
         return yield_calculation
 
+
+
+# --------------------- Leaf-Disease-Detection Serializer ---------------------
+
+class LeafDiseaseDetectionSerializer(serializers.Serializer):
+    image = serializers.ImageField()
+

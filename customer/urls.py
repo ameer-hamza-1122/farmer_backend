@@ -40,4 +40,7 @@ urlpatterns = [
     # ------------------------------ GROK API-Key Endpoints ------------------------------
     path('customer/mistral-api/', views.AIChatView.as_view(), name='potato-crop-lifecycle'),
 
+    # ------------------------- Leaf-Disease-Detection Endpoints -------------------------
+    path('customer/leaf-disease-detection/', views.LeafDiseaseDetectionView.as_view(), name='leaf-disease-detection'),
+
 ]
