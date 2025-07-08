@@ -202,6 +202,37 @@ class ChatTicketSerializer(serializers.ModelSerializer):
 # --------------------- Create-bulk-news Serializer ---------------------
 
 class NewsSerializer(serializers.ModelSerializer):
+    description = serializers.SerializerMethodField()
+    author_description = serializers.SerializerMethodField()
+    class Meta:
+        model = News
+        fields = [
+            'id',
+            'url',
+            'title',
+            'image',
+            'description',
+            'author_image',
+            'author_name',
+            'author_description',
+            'created_at',
+            'updated_at'
+        ]
+
+    def get_description(self, obj):
+        max_length = 200  # Set your desired character limit
+        if obj.description and len(obj.description) > max_length:
+            return obj.description[:max_length] + '.....'
+        return obj.description
+    
+    def get_author_description(self, obj):
+        max_length = 100  # Set your desired character limit
+        if obj.author_description and len(obj.author_description) > max_length:
+            return obj.author_description[:max_length] + '.....'
+        return obj.author_description
+
+
+class NewsDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = News
         fields = [
@@ -366,7 +397,6 @@ class YieldCalculationSerializer(serializers.ModelSerializer):
             estimated_yield=estimated_yield
         )
         return yield_calculation
-
 
 
 # --------------------- Leaf-Disease-Detection Serializer ---------------------
