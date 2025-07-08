@@ -32,7 +32,7 @@ from django.core.paginator import Paginator, PageNotAnInteger, EmptyPage
 from .models import Customer, OneTimePassword, ChatTicket, ChatTicketReply, News, Shop, YieldCalculation, LeafDisease
 from rest_framework.generics import CreateAPIView, RetrieveAPIView, ListAPIView
 from rest_framework.decorators import action, permission_classes, authentication_classes
-from .serializers import CustomerLoginSerializer, CustomerSerializer, RegisterCustomerSerializer,ForgotPasswordSerializer, ResetPasswordWithOTPSerializer, NewsSerializer, ShopSerializer, YieldCalculationSerializer, LeafDiseaseDetectionSerializer
+from .serializers import CustomerLoginSerializer, CustomerSerializer, RegisterCustomerSerializer,ForgotPasswordSerializer, ResetPasswordWithOTPSerializer, NewsSerializer, ShopSerializer, YieldCalculationSerializer, LeafDiseaseDetectionSerializer, NewsDetailSerializer
 
 
 # --------------------- CUSTOMER GET, UPDATE, DELETE ---------------------
@@ -350,7 +350,7 @@ class NewsDetailView(APIView):
     def get(self, request, news_id):
         try:
             news = News.objects.get(id=news_id)
-            serializer = NewsSerializer(news)
+            serializer = NewsDetailSerializer(news)
             return Response(serializer.data, status=status.HTTP_200_OK)
         except News.DoesNotExist:
             return Response({"error": "News not found"}, status=status.HTTP_404_NOT_FOUND)
