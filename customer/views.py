@@ -306,7 +306,7 @@ class RandomNewsAPIView(APIView):
         try:
             # Initialize pagination
             paginator = PageNumberPagination()
-            paginator.page_size = 20
+            paginator.page_size = 10
             
             # Get query parameters for filtering
             author_name_filter = request.query_params.get('author_name', None)
@@ -425,7 +425,7 @@ class RandomShopsAPIView(APIView):
         try:
             # Initialize pagination
             paginator = PageNumberPagination()
-            paginator.page_size = 20
+            paginator.page_size = 10
             
             # Get query parameters for filtering
             name_filter = request.query_params.get('name', None)
