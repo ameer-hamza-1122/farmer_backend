@@ -527,7 +527,7 @@ class AIChatView(APIView):
                         time.sleep(wait_time)
                     else:
                         raise e
-            raise Exception("Max retries exceeded")
+            raise Exception("Try again")
 
         # Craft prompt based on phase and disease
         phase_guidelines = {

@@ -382,6 +382,8 @@ class YieldCalculationSerializer(serializers.ModelSerializer):
             + size_factor_bonus
         )
 
+        estimated_yield = estimated_yield/2.471
+
         # Create instance
         yield_calculation = YieldCalculation.objects.create(
             planting_density=planting_density,

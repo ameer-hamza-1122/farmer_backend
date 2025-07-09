@@ -198,7 +198,7 @@ class YieldCalculation(models.Model):
     estimated_yield = models.FloatField(
         null=True,
         blank=True,
-        help_text="Calculated yield in tons/acre"
+        help_text="Calculated yield in Tonnes/acre"
     )
     created_at = models.DateTimeField(auto_now_add=True)
 
