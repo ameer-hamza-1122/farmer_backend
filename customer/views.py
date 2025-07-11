@@ -271,7 +271,7 @@ class BulkNewsCreateAPIView(APIView):
                     }
                     mapped_data.append(mapped_item)
 
-                serializer = NewsSerializer(data=mapped_data, many=True)
+                serializer = NewsDetailSerializer(data=mapped_data, many=True)
                 if serializer.is_valid():
                     news_instances = [
                         News(**item) for item in serializer.validated_data
