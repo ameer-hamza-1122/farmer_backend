@@ -621,12 +621,15 @@ class YieldCalculationViewSet(viewsets.ModelViewSet):
 # Suppress TensorFlow logs
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
+MODEL_PATH = os.path.join(settings.BASE_DIR, 'leaf_disease_model.h5')
+model = load_model(MODEL_PATH)
+
 class LeafDiseaseDetectionView(APIView):
     authentication_classes = (CustomJWTAuthentication,)
     permission_classes = (IsCustomer,)
 
     def post(self, request, *args, **kwargs):
-        model = load_model("leaf_disease_model.h5")
+        # model = load_model("leaf_disease_model.h5")
         serializer = LeafDiseaseDetectionSerializer(data=request.data)
 
         class_label = ['Bacteria', 'Fungi', 'Healthy', 'Nematode', 'Pest', 'Phytopthora', 'Virus']
