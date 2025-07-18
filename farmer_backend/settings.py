@@ -7,12 +7,15 @@ For more information on this file, see
 https://docs.djangoproject.com/en/5.1/topics/settings/
 
 For the full list of settings and their values, see
-https://docs.djangoproject.com/en/5.1/ref/settings/
+https://docs.djangoproject.com/en/5.1/r ef/settings/
 """
 
+from dotenv import load_dotenv
 from datetime import timedelta
 from pathlib import Path
 import os
+
+load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -30,11 +33,11 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-erds%_@w2a1w8^2-x+^(1xslw$(bqmd6nyj0qz1po_(4cyn9(x'
-OPENWEATHERMAP_API_KEY = '9ce3cd837a9e8e65e5fe2d0fdba6ab9f'
+SECRET_KEY = os.environ.get("SECRET_KEY")
+OPENWEATHERMAP_API_KEY = os.environ.get("OPENWEATHERMAP_API_KEY")
 
 # Mistral API Key
-MISTRAL_API_KEY = 'DRa2HjUWf0yUsMbf61UBXYjFzNPcrYc3'
+MISTRAL_API_KEY = os.environ.get("MISTRAL_API_KEY")
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -76,6 +79,7 @@ EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -132,6 +136,15 @@ DATABASES = {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': BASE_DIR / 'db.sqlite3',
     }
+}
+
+STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
 }
 
 REST_FRAMEWORK = {
